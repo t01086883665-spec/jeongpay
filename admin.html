@@ -1,0 +1,2035 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>정페이 — 정터 결제·흥정 앱</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;600;700;900&display=swap">
+<style>
+  :root {
+    --bg:#f7f2ea; --panel:#fff; --ink:#2b2118; --muted:#76685b; --line:#e5d9c8;
+    --accent:#c2410c; --accent-ink:#fff; --ok:#15803d; --soft:#fbefe1; --danger:#b91c1c;
+    --bar:#2b2118; --bar-ink:#fdf6ec; --bar-line:#5a4a3a; --bar-sub:#e9dccb; --gold:#b8860b;
+    --font-body:"Noto Sans KR","Apple SD Gothic Neo",system-ui,sans-serif;
+    --font-display:"Black Han Sans","Noto Sans KR",sans-serif;
+  }
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px}
+  body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bar)}
+  header{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bar);color:var(--bar-ink);position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+  header h1{font-family:var(--font-display);font-weight:400;font-size:22px;margin:0;white-space:nowrap;letter-spacing:1px}
+  header .who{margin-left:auto;font-size:13px;color:var(--bar-sub);text-align:right;line-height:1.25}
+  header .who b{color:#fff;font-size:14px}
+  .mode{font-size:11px;padding:2px 7px;border-radius:999px;background:#5a4a3a;color:#fdf6ec}
+  .mode.live{background:var(--ok)}
+  nav.tabs{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--bar);border-top:1px solid var(--bar-line);padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
+  nav.tabs button{flex:1;background:transparent;border:0;color:var(--bar-sub);padding:10px 4px 8px;font-size:12px;font-family:inherit;cursor:pointer;line-height:1.2}
+  nav.tabs button .ic{display:block;font-size:20px;margin-bottom:2px}
+  nav.tabs button.on{color:#fff;background:#3b2e22}
+  nav.tabs button .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);margin-left:3px;vertical-align:middle}
+  main{max-width:640px;margin:0 auto;padding:14px 14px 90px}
+  section.screen{display:none} section.screen.on{display:block}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px}
+  h2{margin:0 0 10px;font-size:20px} h3{margin:14px 0 8px;font-size:16px}
+  label{display:block;font-weight:600;margin:10px 0 5px;font-size:14px}
+  .hint{color:var(--muted);font-size:12px;font-weight:400}
+  input[type=text],input[type=number],input[type=password],input[type=tel],select,textarea{width:100%;padding:12px;font-size:17px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);font-family:inherit}
+  textarea{min-height:90px;font-size:13px;font-family:ui-monospace,monospace}
+  :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;font-family:inherit;padding:13px 16px;font-size:16px;font-weight:700;border-radius:12px;border:0;cursor:pointer;background:var(--accent);color:var(--accent-ink);width:100%}
+  .btn.ghost{background:var(--panel);color:var(--ink);border:1px solid var(--line)}
+  .btn.ok{background:var(--ok);color:#fff} .btn.danger{background:var(--danger);color:#fff}
+  .btn.small{padding:8px 12px;font-size:14px;width:auto}
+  .btn:disabled{opacity:.35;cursor:not-allowed}
+  .row{display:flex;gap:8px;flex-wrap:wrap} .row>*{flex:1;min-width:120px}
+  .muted{color:var(--muted)} .right{text-align:right} .center{text-align:center}
+  .won{font-family:var(--font-display);font-weight:400;color:var(--accent);font-variant-numeric:tabular-nums}
+  .balance{text-align:center;padding:18px 10px}
+  .balance .label{color:var(--muted);font-size:14px}
+  .balance .won{font-size:54px;line-height:1.1}
+  .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;background:var(--soft);color:var(--accent);font-weight:700}
+  .badge.gray{background:#eee;color:#666} .badge.green{background:#e3f5e8;color:var(--ok)} .badge.gold{background:#fff3cd;color:var(--gold)}
+  .list{display:flex;flex-direction:column;gap:8px}
+  .item{display:flex;gap:12px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+  .item img,.item .ph{width:56px;height:56px;border-radius:10px;object-fit:cover;background:var(--soft);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:26px}
+  .item .meta{flex:1;min-width:0} .item .meta b{display:block;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .item .meta small{color:var(--muted);font-size:12px}
+  .item .price{font-family:var(--font-display);font-size:20px;color:var(--accent);white-space:nowrap}
+  .item.sold{opacity:.5}
+  .no{font-family:var(--font-display);font-size:13px;color:var(--muted)}
+  .big-no{font-family:var(--font-display);font-size:64px;color:var(--accent);text-align:center;letter-spacing:2px;line-height:1}
+  .qrbox{text-align:center;padding:10px}
+  .qrbox canvas,.qrbox img{width:200px;height:200px;border:8px solid #fff;border-radius:8px;box-shadow:0 1px 6px #0002}
+  .req{border:2px solid var(--accent);border-radius:14px;padding:14px;background:var(--soft);margin-bottom:10px}
+  .req .head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .req .head b{font-size:18px}
+  .req .sub{color:var(--muted);font-size:13px;margin-top:2px}
+  .pricebox{display:flex;align-items:center;gap:8px;margin:10px 0}
+  .pricebox input{flex:1;font-size:22px;text-align:right;font-family:var(--font-display);color:var(--accent)}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+  .chip{padding:7px 10px;border-radius:999px;border:1px solid var(--line);background:var(--panel);font-size:14px;cursor:pointer;font-family:inherit;font-weight:700}
+  .chip:active{background:var(--soft)}
+  .disc{font-size:14px;color:var(--ok);font-weight:700;min-height:18px}
+  table{width:100%;border-collapse:collapse;font-size:14px} th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top} th{color:var(--muted);font-weight:600;font-size:12px}
+  td.r,th.r{text-align:right;white-space:nowrap}
+  .rank1{background:#fff8e1}
+  .stat{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .stat div{background:var(--soft);border-radius:12px;padding:10px;text-align:center}
+  .stat div b{display:block;font-family:var(--font-display);font-weight:400;font-size:22px;color:var(--accent)}
+  .stat div span{font-size:12px;color:var(--muted)}
+  .toast{position:fixed;left:50%;bottom:calc(78px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--bar);color:var(--bar-ink);padding:11px 16px;border-radius:10px;display:none;z-index:20;max-width:90vw;font-size:14px;text-align:center}
+  dialog{border:0;border-radius:16px;padding:0;width:min(520px,94vw);background:var(--panel);color:var(--ink)}
+  dialog::backdrop{background:#0008} dialog .card{margin:0;border:0}
+  .scan{position:relative;border-radius:14px;overflow:hidden;background:#000;margin-top:8px}
+  .scan video{display:block;width:100%;max-height:50vh;object-fit:cover}
+  .scan .frame{position:absolute;inset:15% 20%;border:3px solid #fff8;border-radius:12px;pointer-events:none}
+  .done-big{text-align:center;padding:22px 10px}
+  .done-big .ic{font-size:60px} .done-big h3{font-size:24px;margin:6px 0}
+  .gate{text-align:center;padding:30px 16px}
+  .gate h1{font-family:var(--font-display);font-weight:400;font-size:44px;margin:0;color:var(--accent);letter-spacing:2px}
+  .gate p{color:var(--muted);margin:4px 0 20px}
+  .ticker{font-size:13px;color:var(--muted);padding:6px 0;border-bottom:1px dashed var(--line)}
+  .ticker:last-child{border:0}
+  .sellerbox{background:var(--soft);border-radius:12px;padding:10px 12px;margin-top:8px;font-size:14px}
+  .sellerbox.open{border:2px solid var(--ok);background:#e3f5e8}
+  .sellerbox.closed{border:2px solid var(--danger);background:#fde8e8}
+  .sellerbox .st{font-weight:700;font-size:15px}
+  @media (max-width:380px){ .balance .won{font-size:44px} }
+</style>
+</head>
+<body>
+
+<header>
+  <h1 id="appTitle">情 정페이</h1>
+  <span class="mode" id="modeBadge">데모</span>
+  <div class="who" id="whoBox"></div>
+</header>
+
+<main>
+
+<!-- 0. 가입/로그인 -->
+<section class="screen on" id="s-gate">
+  <div class="gate">
+    <h1>정페이</h1>
+    <p id="gateSub">정터(情터) 결제 · 흥정 기록 앱</p>
+  </div>
+  <div class="card">
+    <h2>이름·전화번호로 시작</h2>
+    <label>이름</label><input type="text" id="gName" maxlength="20" placeholder="홍길동" autocomplete="off">
+    <label>전화번호 <span class="hint">같은 번호면 어느 폰에서든 같은 지갑 · 환전·정산 확인용</span></label><input type="tel" id="gSid" inputmode="tel" maxlength="13" placeholder="010-1234-5678" autocomplete="tel">
+    <div style="height:12px"></div>
+    <button class="btn" id="gGo">시작하기</button>
+    <p class="muted center" style="font-size:12px;margin:10px 0 0">잔액은 환전소에서 현금 충전 후 운영진 승인으로 들어옵니다.</p>
+  </div>
+</section>
+
+<!-- 1. 내 지갑 (소비자) -->
+<section class="screen" id="s-wallet">
+  <div class="card">
+    <div class="balance">
+      <div class="label">내 정(情) 잔액</div>
+      <div class="won" id="wBal">0원</div>
+      <div class="muted" id="wPending" style="font-size:13px;min-height:18px"></div>
+    </div>
+    <div class="row">
+      <button class="btn" id="wScan">📷 가게 QR 찍기</button>
+      <button class="btn ghost" id="wTopup">💰 충전 요청</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <input type="number" id="wNo" inputmode="numeric" placeholder="셀러 번호 직접 입력">
+      <button class="btn ghost" id="wNoGo" style="flex:0 0 auto;width:auto">열기</button>
+    </div>
+    <div class="scan" id="scanBox" hidden><video id="scanVideo" autoplay playsinline muted></video><div class="frame"></div>
+      <button class="btn small ghost" id="scanStop" style="position:absolute;right:8px;top:8px">닫기</button></div>
+  </div>
+
+  <div class="card" id="buyCard" hidden></div>
+
+  <div class="card">
+    <h3 style="margin-top:0">내 구매 내역</h3>
+    <div class="list" id="wBuys"><div class="muted">아직 없음</div></div>
+  </div>
+  <div class="card" id="wBecomeSeller">
+    <h3 style="margin-top:0">물건을 팔고 싶다면</h3>
+    <p class="muted" style="font-size:14px;margin:0 0 10px">셀러로 등록하면 물건 등록·QR·흥정 확정 탭이 열립니다. (셀러도 손님으로 살 수 있어요)</p>
+    <button class="btn ghost" id="wSellerOn">🏷️ 셀러로 등록</button>
+  </div>
+</section>
+
+<!-- 2. 셀러 -->
+<section class="screen" id="s-seller">
+  <div id="sReqs"></div>
+
+  <div class="card">
+    <h2>내 가게 QR <span class="no" id="sMyNo"></span></h2>
+    <div class="qrbox"><canvas id="sMyQr"></canvas></div>
+    <p class="muted center" style="font-size:13px;margin:4px 0 0">이 QR 하나를 가게 앞에 붙여 두세요. 손님이 찍으면 내 물건 목록이 뜨고, 고르면 결제 요청이 옵니다. (QR 못 찍으면 셀러 번호 입력)</p>
+  </div>
+  <div class="card">
+    <h2>내 가게 <span class="badge" id="sCount"></span></h2>
+    <div class="sellerbox" id="sStatusBox">
+      <div class="st" id="sStatusText"></div>
+      <div class="muted" style="font-size:12px">흥정 할인 합계가 가장 큰 셀러에게 상금이 갑니다. 깎아줄수록 점수 ↑</div>
+    </div>
+    <div class="stat" style="margin-top:10px">
+      <div><b id="sSales">0</b><span>판매 건</span></div>
+      <div><b id="sRev">0원</b><span>매출</span></div>
+      <div><b id="sDisc">0원</b><span>흥정 점수</span></div>
+    </div>
+  </div>
+
+  <div class="card" id="sForm">
+    <h3 style="margin-top:0">물건 등록</h3>
+    <label>물건 이름 <span class="hint">같은 이름 두 번 등록 불가</span></label>
+    <input type="text" id="iName" maxlength="30" placeholder="예) 손때 묻은 전공책">
+    <label>정가(情價) <span class="hint">이미 정으로 할인된 가격 · 최대 50,000원 · 100원 단위</span></label>
+    <input type="number" id="iPrice" step="100" min="100" max="50000" inputmode="numeric" placeholder="5000">
+    <label>사진 <span class="hint">선택</span></label>
+    <div class="row">
+      <button type="button" class="btn ghost small" id="iPhotoBtn">📷 사진 넣기</button>
+      <button type="button" class="btn ghost small" id="iPhotoClear" hidden>사진 빼기</button>
+    </div>
+    <input type="file" id="iPhoto" accept="image/*" hidden>
+    <img id="iPrev" alt="" style="display:none;max-height:140px;border-radius:10px;margin-top:8px">
+    <div style="height:10px"></div>
+    <button class="btn" id="iSubmit">등록하고 번호 받기</button>
+  </div>
+
+  <div class="card" id="sDone" hidden>
+    <div class="muted center">물건 번호</div>
+    <div class="big-no" id="sDoneNo">000</div>
+    <p class="center" id="sDoneName" style="margin:6px 0"></p>
+    <p class="muted center" style="font-size:13px">물건에 번호표를 붙여 두면 손님이 고르기 쉬워요. QR은 가게당 하나(위 '내 가게 QR')만 쓰면 됩니다.</p>
+    <div class="row"><button class="btn ghost" id="sDoneAgain">다음 물건 등록</button></div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">내 물건</h3>
+    <div class="list" id="sItems"><div class="muted">아직 없음</div></div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">정산</h3>
+    <p class="muted" style="font-size:14px;margin:0 0 8px">행사 끝나면 매출을 현금으로 돌려받습니다. 환전소에 가서 요청하세요.</p>
+    <button class="btn ghost" id="sPayout">💵 정산 요청 (매출 전액)</button>
+  </div>
+</section>
+
+<!-- 3. 본부 -->
+<section class="screen" id="s-admin">
+  <div class="card" id="aLock">
+    <h2>환전소 (운영진 전용)</h2>
+    <p class="muted" style="font-size:13px;margin:0 0 6px">운영진만 쓰는 앱입니다. 손님·셀러 앱과 같은 데이터를 봅니다.</p>
+    <label>운영진 PIN</label>
+    <input type="password" id="aPin" inputmode="numeric" placeholder="PIN">
+    <div style="height:10px"></div>
+    <button class="btn" id="aUnlock">열기</button>
+  </div>
+  <div id="aBody" hidden>
+    <div class="card">
+      <h2>충전 · 정산 요청 <span class="badge" id="aReqCount"></span></h2>
+      <div id="aReqs"><div class="muted">대기 중인 요청 없음</div></div>
+      <h3>직접 충전 <span class="hint">요청 없이 운영진이 바로 넣기</span></h3>
+      <div class="row">
+        <select id="aUserPick"></select>
+        <input type="number" id="aAmt" step="1000" inputmode="numeric" placeholder="금액">
+        <button class="btn small" id="aTopupGo" style="flex:0 0 auto">충전</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>현황</h2>
+      <div class="stat">
+        <div><b id="aUsers">0</b><span>가입</span></div>
+        <div><b id="aItems">0</b><span>물건</span></div>
+        <div><b id="aSold">0</b><span>판매</span></div>
+      </div>
+      <div class="stat" style="margin-top:8px">
+        <div><b id="aCharged">0원</b><span>총 충전</span></div>
+        <div><b id="aRev">0원</b><span>총 거래액</span></div>
+        <div><b id="aFloat">0원</b><span>미사용 잔액</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>🏆 흥정왕 랭킹 <span class="hint">할인 합계</span></h2>
+      <table id="aRank"><thead><tr><th>#</th><th>셀러</th><th class="r">할인 합계</th><th class="r">건</th></tr></thead><tbody></tbody></table>
+    </div>
+    <div class="card">
+      <h2>실시간 거래</h2>
+      <div id="aLog"></div>
+    </div>
+    <div class="card">
+      <h2>데이터</h2>
+      <div class="row">
+        <button class="btn ghost small" id="aCsvTx">거래 CSV</button>
+        <button class="btn ghost small" id="aCsvItems">물건 CSV</button>
+        <button class="btn ghost small" id="aCsvUsers">회원 CSV</button>
+      </div>
+      <h3>운영진 PIN 변경 <span class="hint">모든 환전소 기기에 바로 적용</span></h3>
+      <div class="row">
+        <input type="password" id="pinNew" inputmode="numeric" maxlength="8" placeholder="새 PIN (4~8자리 숫자)">
+        <input type="password" id="pinNew2" inputmode="numeric" maxlength="8" placeholder="한 번 더">
+        <button class="btn small" id="pinSave" style="flex:0 0 auto">변경</button>
+      </div>
+      <h3>서버 연결 (Firebase)</h3>
+      <p class="muted" style="font-size:13px;margin:0 0 6px" id="fbStatus"></p>
+      <textarea id="fbCfg" placeholder='Firebase 콘솔 → 프로젝트 설정 → "내 앱" → SDK 설정의 firebaseConfig = { ... } 부분을 그대로 붙여넣기'></textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="btn small" id="fbSave">저장하고 연결</button>
+        <button class="btn ghost small" id="fbOff">데모 모드로</button>
+      </div>
+      <h3>데모 도구</h3>
+      <div class="row">
+        <button class="btn ghost small" id="aSeed">예시 셀러·물건 넣기</button>
+        <button class="btn ghost small danger" id="aWipe">이 기기 데모 데이터 초기화</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<nav class="tabs" id="tabs" hidden>
+  <button data-go="wallet" class="on"><span class="ic">👛</span>지갑</button>
+  <button data-go="seller" id="tabSeller" hidden><span class="ic">🏷️</span>셀러<span class="dot" id="sellerDot" hidden></span></button>
+  <button data-go="admin" id="tabAdmin" hidden><span class="ic">🏛️</span>환전소</button>
+  <button id="tabLogout"><span class="ic">↪︎</span>나가기</button>
+</nav>
+
+<dialog id="ask"><form class="card" method="dialog">
+  <p id="askMsg" style="font-size:17px;margin:0 0 8px;white-space:pre-line"></p>
+  <input type="number" id="askInput" inputmode="numeric" hidden>
+  <div class="row" style="margin-top:10px"><button class="btn ghost" value="cancel">취소</button><button class="btn" value="ok" id="askOk">확인</button></div>
+</form></dialog>
+<div class="toast" id="toast"></div>
+
+<script>
+/* QR 인코더 (Kazuhiko Arase, MIT) — 인라인, 외부 로딩 없음 */
+(function(){var M={};function req(n){n=n.replace("./","").replace(".js","");if(!M[n].done){var m={exports:{}};M[n].done=true;M[n].fn(m,m.exports,req);M[n].exports=m.exports;}return M[n].exports;}
+M["QR8bitByte"]={fn:function(module,exports,require){
+var QRMode = require('./QRMode');
+
+function QR8bitByte(data) {
+	this.mode = QRMode.MODE_8BIT_BYTE;
+	this.data = data;
+}
+
+QR8bitByte.prototype = {
+
+	getLength : function() {
+		return this.data.length;
+	},
+	
+	write : function(buffer) {
+		for (var i = 0; i < this.data.length; i++) {
+			// not JIS ...
+			buffer.put(this.data.charCodeAt(i), 8);
+		}
+	}
+};
+
+module.exports = QR8bitByte;
+
+}};
+M["QRBitBuffer"]={fn:function(module,exports,require){
+function QRBitBuffer() {
+	this.buffer = [];
+	this.length = 0;
+}
+
+QRBitBuffer.prototype = {
+
+	get : function(index) {
+		var bufIndex = Math.floor(index / 8);
+		return ( (this.buffer[bufIndex] >>> (7 - index % 8) ) & 1) == 1;
+	},
+	
+	put : function(num, length) {
+		for (var i = 0; i < length; i++) {
+			this.putBit( ( (num >>> (length - i - 1) ) & 1) == 1);
+		}
+	},
+	
+	getLengthInBits : function() {
+		return this.length;
+	},
+	
+	putBit : function(bit) {
+	
+		var bufIndex = Math.floor(this.length / 8);
+		if (this.buffer.length <= bufIndex) {
+			this.buffer.push(0);
+		}
+	
+		if (bit) {
+			this.buffer[bufIndex] |= (0x80 >>> (this.length % 8) );
+		}
+	
+		this.length++;
+	}
+};
+
+module.exports = QRBitBuffer;
+
+}};
+M["QRErrorCorrectLevel"]={fn:function(module,exports,require){
+module.exports = {
+	L : 1,
+	M : 0,
+	Q : 3,
+	H : 2
+};
+
+
+}};
+M["QRMaskPattern"]={fn:function(module,exports,require){
+module.exports = {
+	PATTERN000 : 0,
+	PATTERN001 : 1,
+	PATTERN010 : 2,
+	PATTERN011 : 3,
+	PATTERN100 : 4,
+	PATTERN101 : 5,
+	PATTERN110 : 6,
+	PATTERN111 : 7
+};
+
+}};
+M["QRMath"]={fn:function(module,exports,require){
+var QRMath = {
+
+	glog : function(n) {
+	
+		if (n < 1) {
+			throw new Error("glog(" + n + ")");
+		}
+		
+		return QRMath.LOG_TABLE[n];
+	},
+	
+	gexp : function(n) {
+	
+		while (n < 0) {
+			n += 255;
+		}
+	
+		while (n >= 256) {
+			n -= 255;
+		}
+	
+		return QRMath.EXP_TABLE[n];
+	},
+	
+	EXP_TABLE : new Array(256),
+	
+	LOG_TABLE : new Array(256)
+
+};
+	
+for (var i = 0; i < 8; i++) {
+	QRMath.EXP_TABLE[i] = 1 << i;
+}
+for (var i = 8; i < 256; i++) {
+	QRMath.EXP_TABLE[i] = QRMath.EXP_TABLE[i - 4]
+		^ QRMath.EXP_TABLE[i - 5]
+		^ QRMath.EXP_TABLE[i - 6]
+		^ QRMath.EXP_TABLE[i - 8];
+}
+for (var i = 0; i < 255; i++) {
+	QRMath.LOG_TABLE[QRMath.EXP_TABLE[i] ] = i;
+}
+
+module.exports = QRMath;
+
+}};
+M["QRMode"]={fn:function(module,exports,require){
+module.exports = {
+    MODE_NUMBER :       1 << 0,
+    MODE_ALPHA_NUM :    1 << 1,
+    MODE_8BIT_BYTE :    1 << 2,
+    MODE_KANJI :        1 << 3
+};
+
+}};
+M["QRPolynomial"]={fn:function(module,exports,require){
+var QRMath = require('./QRMath');
+
+function QRPolynomial(num, shift) {
+	if (num.length === undefined) {
+		throw new Error(num.length + "/" + shift);
+	}
+
+	var offset = 0;
+
+	while (offset < num.length && num[offset] === 0) {
+		offset++;
+	}
+
+	this.num = new Array(num.length - offset + shift);
+	for (var i = 0; i < num.length - offset; i++) {
+		this.num[i] = num[i + offset];
+	}
+}
+
+QRPolynomial.prototype = {
+
+	get : function(index) {
+		return this.num[index];
+	},
+	
+	getLength : function() {
+		return this.num.length;
+	},
+	
+	multiply : function(e) {
+	
+		var num = new Array(this.getLength() + e.getLength() - 1);
+	
+		for (var i = 0; i < this.getLength(); i++) {
+			for (var j = 0; j < e.getLength(); j++) {
+				num[i + j] ^= QRMath.gexp(QRMath.glog(this.get(i) ) + QRMath.glog(e.get(j) ) );
+			}
+		}
+	
+		return new QRPolynomial(num, 0);
+	},
+	
+	mod : function(e) {
+	
+		if (this.getLength() - e.getLength() < 0) {
+			return this;
+		}
+	
+		var ratio = QRMath.glog(this.get(0) ) - QRMath.glog(e.get(0) );
+	
+		var num = new Array(this.getLength() );
+		
+		for (var i = 0; i < this.getLength(); i++) {
+			num[i] = this.get(i);
+		}
+		
+		for (var x = 0; x < e.getLength(); x++) {
+			num[x] ^= QRMath.gexp(QRMath.glog(e.get(x) ) + ratio);
+		}
+	
+		// recursive call
+		return new QRPolynomial(num, 0).mod(e);
+	}
+};
+
+module.exports = QRPolynomial;
+
+}};
+M["QRRSBlock"]={fn:function(module,exports,require){
+var QRErrorCorrectLevel = require('./QRErrorCorrectLevel');
+
+function QRRSBlock(totalCount, dataCount) {
+	this.totalCount = totalCount;
+	this.dataCount  = dataCount;
+}
+
+QRRSBlock.RS_BLOCK_TABLE = [
+
+	// L
+	// M
+	// Q
+	// H
+
+	// 1
+	[1, 26, 19],
+	[1, 26, 16],
+	[1, 26, 13],
+	[1, 26, 9],
+	
+	// 2
+	[1, 44, 34],
+	[1, 44, 28],
+	[1, 44, 22],
+	[1, 44, 16],
+
+	// 3
+	[1, 70, 55],
+	[1, 70, 44],
+	[2, 35, 17],
+	[2, 35, 13],
+
+	// 4		
+	[1, 100, 80],
+	[2, 50, 32],
+	[2, 50, 24],
+	[4, 25, 9],
+	
+	// 5
+	[1, 134, 108],
+	[2, 67, 43],
+	[2, 33, 15, 2, 34, 16],
+	[2, 33, 11, 2, 34, 12],
+	
+	// 6
+	[2, 86, 68],
+	[4, 43, 27],
+	[4, 43, 19],
+	[4, 43, 15],
+	
+	// 7		
+	[2, 98, 78],
+	[4, 49, 31],
+	[2, 32, 14, 4, 33, 15],
+	[4, 39, 13, 1, 40, 14],
+	
+	// 8
+	[2, 121, 97],
+	[2, 60, 38, 2, 61, 39],
+	[4, 40, 18, 2, 41, 19],
+	[4, 40, 14, 2, 41, 15],
+	
+	// 9
+	[2, 146, 116],
+	[3, 58, 36, 2, 59, 37],
+	[4, 36, 16, 4, 37, 17],
+	[4, 36, 12, 4, 37, 13],
+	
+	// 10		
+	[2, 86, 68, 2, 87, 69],
+	[4, 69, 43, 1, 70, 44],
+	[6, 43, 19, 2, 44, 20],
+	[6, 43, 15, 2, 44, 16],
+
+	// 11
+	[4, 101, 81],
+	[1, 80, 50, 4, 81, 51],
+	[4, 50, 22, 4, 51, 23],
+	[3, 36, 12, 8, 37, 13],
+
+	// 12
+	[2, 116, 92, 2, 117, 93],
+	[6, 58, 36, 2, 59, 37],
+	[4, 46, 20, 6, 47, 21],
+	[7, 42, 14, 4, 43, 15],
+
+	// 13
+	[4, 133, 107],
+	[8, 59, 37, 1, 60, 38],
+	[8, 44, 20, 4, 45, 21],
+	[12, 33, 11, 4, 34, 12],
+
+	// 14
+	[3, 145, 115, 1, 146, 116],
+	[4, 64, 40, 5, 65, 41],
+	[11, 36, 16, 5, 37, 17],
+	[11, 36, 12, 5, 37, 13],
+
+	// 15
+	[5, 109, 87, 1, 110, 88],
+	[5, 65, 41, 5, 66, 42],
+	[5, 54, 24, 7, 55, 25],
+	[11, 36, 12],
+
+	// 16
+	[5, 122, 98, 1, 123, 99],
+	[7, 73, 45, 3, 74, 46],
+	[15, 43, 19, 2, 44, 20],
+	[3, 45, 15, 13, 46, 16],
+
+	// 17
+	[1, 135, 107, 5, 136, 108],
+	[10, 74, 46, 1, 75, 47],
+	[1, 50, 22, 15, 51, 23],
+	[2, 42, 14, 17, 43, 15],
+
+	// 18
+	[5, 150, 120, 1, 151, 121],
+	[9, 69, 43, 4, 70, 44],
+	[17, 50, 22, 1, 51, 23],
+	[2, 42, 14, 19, 43, 15],
+
+	// 19
+	[3, 141, 113, 4, 142, 114],
+	[3, 70, 44, 11, 71, 45],
+	[17, 47, 21, 4, 48, 22],
+	[9, 39, 13, 16, 40, 14],
+
+	// 20
+	[3, 135, 107, 5, 136, 108],
+	[3, 67, 41, 13, 68, 42],
+	[15, 54, 24, 5, 55, 25],
+	[15, 43, 15, 10, 44, 16],
+
+	// 21
+	[4, 144, 116, 4, 145, 117],
+	[17, 68, 42],
+	[17, 50, 22, 6, 51, 23],
+	[19, 46, 16, 6, 47, 17],
+
+	// 22
+	[2, 139, 111, 7, 140, 112],
+	[17, 74, 46],
+	[7, 54, 24, 16, 55, 25],
+	[34, 37, 13],
+
+	// 23
+	[4, 151, 121, 5, 152, 122],
+	[4, 75, 47, 14, 76, 48],
+	[11, 54, 24, 14, 55, 25],
+	[16, 45, 15, 14, 46, 16],
+
+	// 24
+	[6, 147, 117, 4, 148, 118],
+	[6, 73, 45, 14, 74, 46],
+	[11, 54, 24, 16, 55, 25],
+	[30, 46, 16, 2, 47, 17],
+
+	// 25
+	[8, 132, 106, 4, 133, 107],
+	[8, 75, 47, 13, 76, 48],
+	[7, 54, 24, 22, 55, 25],
+	[22, 45, 15, 13, 46, 16],
+
+	// 26
+	[10, 142, 114, 2, 143, 115],
+	[19, 74, 46, 4, 75, 47],
+	[28, 50, 22, 6, 51, 23],
+	[33, 46, 16, 4, 47, 17],
+
+	// 27
+	[8, 152, 122, 4, 153, 123],
+	[22, 73, 45, 3, 74, 46],
+	[8, 53, 23, 26, 54, 24],
+	[12, 45, 15, 28, 46, 16],
+
+	// 28
+	[3, 147, 117, 10, 148, 118],
+	[3, 73, 45, 23, 74, 46],
+	[4, 54, 24, 31, 55, 25],
+	[11, 45, 15, 31, 46, 16],
+
+	// 29
+	[7, 146, 116, 7, 147, 117],
+	[21, 73, 45, 7, 74, 46],
+	[1, 53, 23, 37, 54, 24],
+	[19, 45, 15, 26, 46, 16],
+
+	// 30
+	[5, 145, 115, 10, 146, 116],
+	[19, 75, 47, 10, 76, 48],
+	[15, 54, 24, 25, 55, 25],
+	[23, 45, 15, 25, 46, 16],
+
+	// 31
+	[13, 145, 115, 3, 146, 116],
+	[2, 74, 46, 29, 75, 47],
+	[42, 54, 24, 1, 55, 25],
+	[23, 45, 15, 28, 46, 16],
+
+	// 32
+	[17, 145, 115],
+	[10, 74, 46, 23, 75, 47],
+	[10, 54, 24, 35, 55, 25],
+	[19, 45, 15, 35, 46, 16],
+
+	// 33
+	[17, 145, 115, 1, 146, 116],
+	[14, 74, 46, 21, 75, 47],
+	[29, 54, 24, 19, 55, 25],
+	[11, 45, 15, 46, 46, 16],
+
+	// 34
+	[13, 145, 115, 6, 146, 116],
+	[14, 74, 46, 23, 75, 47],
+	[44, 54, 24, 7, 55, 25],
+	[59, 46, 16, 1, 47, 17],
+
+	// 35
+	[12, 151, 121, 7, 152, 122],
+	[12, 75, 47, 26, 76, 48],
+	[39, 54, 24, 14, 55, 25],
+	[22, 45, 15, 41, 46, 16],
+
+	// 36
+	[6, 151, 121, 14, 152, 122],
+	[6, 75, 47, 34, 76, 48],
+	[46, 54, 24, 10, 55, 25],
+	[2, 45, 15, 64, 46, 16],
+
+	// 37
+	[17, 152, 122, 4, 153, 123],
+	[29, 74, 46, 14, 75, 47],
+	[49, 54, 24, 10, 55, 25],
+	[24, 45, 15, 46, 46, 16],
+
+	// 38
+	[4, 152, 122, 18, 153, 123],
+	[13, 74, 46, 32, 75, 47],
+	[48, 54, 24, 14, 55, 25],
+	[42, 45, 15, 32, 46, 16],
+
+	// 39
+	[20, 147, 117, 4, 148, 118],
+	[40, 75, 47, 7, 76, 48],
+	[43, 54, 24, 22, 55, 25],
+	[10, 45, 15, 67, 46, 16],
+
+	// 40
+	[19, 148, 118, 6, 149, 119],
+	[18, 75, 47, 31, 76, 48],
+	[34, 54, 24, 34, 55, 25],
+	[20, 45, 15, 61, 46, 16]
+];
+
+QRRSBlock.getRSBlocks = function(typeNumber, errorCorrectLevel) {
+	
+	var rsBlock = QRRSBlock.getRsBlockTable(typeNumber, errorCorrectLevel);
+	
+	if (rsBlock === undefined) {
+		throw new Error("bad rs block @ typeNumber:" + typeNumber + "/errorCorrectLevel:" + errorCorrectLevel);
+	}
+
+	var length = rsBlock.length / 3;
+	
+	var list = [];
+	
+	for (var i = 0; i < length; i++) {
+
+		var count = rsBlock[i * 3 + 0];
+		var totalCount = rsBlock[i * 3 + 1];
+		var dataCount  = rsBlock[i * 3 + 2];
+
+		for (var j = 0; j < count; j++) {
+			list.push(new QRRSBlock(totalCount, dataCount) );	
+		}
+	}
+	
+	return list;
+};
+
+QRRSBlock.getRsBlockTable = function(typeNumber, errorCorrectLevel) {
+
+	switch(errorCorrectLevel) {
+	case QRErrorCorrectLevel.L :
+		return QRRSBlock.RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 0];
+	case QRErrorCorrectLevel.M :
+		return QRRSBlock.RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 1];
+	case QRErrorCorrectLevel.Q :
+		return QRRSBlock.RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 2];
+	case QRErrorCorrectLevel.H :
+		return QRRSBlock.RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 3];
+	default :
+		return undefined;
+	}
+};
+
+module.exports = QRRSBlock;
+
+}};
+M["QRUtil"]={fn:function(module,exports,require){
+var QRMode = require('./QRMode');
+var QRPolynomial = require('./QRPolynomial');
+var QRMath = require('./QRMath');
+var QRMaskPattern = require('./QRMaskPattern');
+
+var QRUtil = {
+
+    PATTERN_POSITION_TABLE : [
+        [],
+        [6, 18],
+        [6, 22],
+        [6, 26],
+        [6, 30],
+        [6, 34],
+        [6, 22, 38],
+        [6, 24, 42],
+        [6, 26, 46],
+        [6, 28, 50],
+        [6, 30, 54],        
+        [6, 32, 58],
+        [6, 34, 62],
+        [6, 26, 46, 66],
+        [6, 26, 48, 70],
+        [6, 26, 50, 74],
+        [6, 30, 54, 78],
+        [6, 30, 56, 82],
+        [6, 30, 58, 86],
+        [6, 34, 62, 90],
+        [6, 28, 50, 72, 94],
+        [6, 26, 50, 74, 98],
+        [6, 30, 54, 78, 102],
+        [6, 28, 54, 80, 106],
+        [6, 32, 58, 84, 110],
+        [6, 30, 58, 86, 114],
+        [6, 34, 62, 90, 118],
+        [6, 26, 50, 74, 98, 122],
+        [6, 30, 54, 78, 102, 126],
+        [6, 26, 52, 78, 104, 130],
+        [6, 30, 56, 82, 108, 134],
+        [6, 34, 60, 86, 112, 138],
+        [6, 30, 58, 86, 114, 142],
+        [6, 34, 62, 90, 118, 146],
+        [6, 30, 54, 78, 102, 126, 150],
+        [6, 24, 50, 76, 102, 128, 154],
+        [6, 28, 54, 80, 106, 132, 158],
+        [6, 32, 58, 84, 110, 136, 162],
+        [6, 26, 54, 82, 110, 138, 166],
+        [6, 30, 58, 86, 114, 142, 170]
+    ],
+
+    G15 : (1 << 10) | (1 << 8) | (1 << 5) | (1 << 4) | (1 << 2) | (1 << 1) | (1 << 0),
+    G18 : (1 << 12) | (1 << 11) | (1 << 10) | (1 << 9) | (1 << 8) | (1 << 5) | (1 << 2) | (1 << 0),
+    G15_MASK : (1 << 14) | (1 << 12) | (1 << 10)    | (1 << 4) | (1 << 1),
+
+    getBCHTypeInfo : function(data) {
+        var d = data << 10;
+        while (QRUtil.getBCHDigit(d) - QRUtil.getBCHDigit(QRUtil.G15) >= 0) {
+            d ^= (QRUtil.G15 << (QRUtil.getBCHDigit(d) - QRUtil.getBCHDigit(QRUtil.G15) ) );    
+        }
+        return ( (data << 10) | d) ^ QRUtil.G15_MASK;
+    },
+
+    getBCHTypeNumber : function(data) {
+        var d = data << 12;
+        while (QRUtil.getBCHDigit(d) - QRUtil.getBCHDigit(QRUtil.G18) >= 0) {
+            d ^= (QRUtil.G18 << (QRUtil.getBCHDigit(d) - QRUtil.getBCHDigit(QRUtil.G18) ) );    
+        }
+        return (data << 12) | d;
+    },
+
+    getBCHDigit : function(data) {
+
+        var digit = 0;
+
+        while (data !== 0) {
+            digit++;
+            data >>>= 1;
+        }
+
+        return digit;
+    },
+
+    getPatternPosition : function(typeNumber) {
+        return QRUtil.PATTERN_POSITION_TABLE[typeNumber - 1];
+    },
+
+    getMask : function(maskPattern, i, j) {
+        
+        switch (maskPattern) {
+            
+        case QRMaskPattern.PATTERN000 : return (i + j) % 2 === 0;
+        case QRMaskPattern.PATTERN001 : return i % 2 === 0;
+        case QRMaskPattern.PATTERN010 : return j % 3 === 0;
+        case QRMaskPattern.PATTERN011 : return (i + j) % 3 === 0;
+        case QRMaskPattern.PATTERN100 : return (Math.floor(i / 2) + Math.floor(j / 3) ) % 2 === 0;
+        case QRMaskPattern.PATTERN101 : return (i * j) % 2 + (i * j) % 3 === 0;
+        case QRMaskPattern.PATTERN110 : return ( (i * j) % 2 + (i * j) % 3) % 2 === 0;
+        case QRMaskPattern.PATTERN111 : return ( (i * j) % 3 + (i + j) % 2) % 2 === 0;
+
+        default :
+            throw new Error("bad maskPattern:" + maskPattern);
+        }
+    },
+
+    getErrorCorrectPolynomial : function(errorCorrectLength) {
+
+        var a = new QRPolynomial([1], 0);
+
+        for (var i = 0; i < errorCorrectLength; i++) {
+            a = a.multiply(new QRPolynomial([1, QRMath.gexp(i)], 0) );
+        }
+
+        return a;
+    },
+
+    getLengthInBits : function(mode, type) {
+
+        if (1 <= type && type < 10) {
+
+            // 1 - 9
+
+            switch(mode) {
+            case QRMode.MODE_NUMBER     : return 10;
+            case QRMode.MODE_ALPHA_NUM  : return 9;
+            case QRMode.MODE_8BIT_BYTE  : return 8;
+            case QRMode.MODE_KANJI      : return 8;
+            default :
+                throw new Error("mode:" + mode);
+            }
+
+        } else if (type < 27) {
+
+            // 10 - 26
+
+            switch(mode) {
+            case QRMode.MODE_NUMBER     : return 12;
+            case QRMode.MODE_ALPHA_NUM  : return 11;
+            case QRMode.MODE_8BIT_BYTE  : return 16;
+            case QRMode.MODE_KANJI      : return 10;
+            default :
+                throw new Error("mode:" + mode);
+            }
+
+        } else if (type < 41) {
+
+            // 27 - 40
+
+            switch(mode) {
+            case QRMode.MODE_NUMBER     : return 14;
+            case QRMode.MODE_ALPHA_NUM  : return 13;
+            case QRMode.MODE_8BIT_BYTE  : return 16;
+            case QRMode.MODE_KANJI      : return 12;
+            default :
+                throw new Error("mode:" + mode);
+            }
+
+        } else {
+            throw new Error("type:" + type);
+        }
+    },
+
+    getLostPoint : function(qrCode) {
+        
+        var moduleCount = qrCode.getModuleCount();
+        var lostPoint = 0;
+        var row = 0; 
+        var col = 0;
+
+        
+        // LEVEL1
+        
+        for (row = 0; row < moduleCount; row++) {
+
+            for (col = 0; col < moduleCount; col++) {
+
+                var sameCount = 0;
+                var dark = qrCode.isDark(row, col);
+
+                for (var r = -1; r <= 1; r++) {
+
+                    if (row + r < 0 || moduleCount <= row + r) {
+                        continue;
+                    }
+
+                    for (var c = -1; c <= 1; c++) {
+
+                        if (col + c < 0 || moduleCount <= col + c) {
+                            continue;
+                        }
+
+                        if (r === 0 && c === 0) {
+                            continue;
+                        }
+
+                        if (dark === qrCode.isDark(row + r, col + c) ) {
+                            sameCount++;
+                        }
+                    }
+                }
+
+                if (sameCount > 5) {
+                    lostPoint += (3 + sameCount - 5);
+                }
+            }
+        }
+
+        // LEVEL2
+
+        for (row = 0; row < moduleCount - 1; row++) {
+            for (col = 0; col < moduleCount - 1; col++) {
+                var count = 0;
+                if (qrCode.isDark(row,     col    ) ) count++;
+                if (qrCode.isDark(row + 1, col    ) ) count++;
+                if (qrCode.isDark(row,     col + 1) ) count++;
+                if (qrCode.isDark(row + 1, col + 1) ) count++;
+                if (count === 0 || count === 4) {
+                    lostPoint += 3;
+                }
+            }
+        }
+
+        // LEVEL3
+
+        for (row = 0; row < moduleCount; row++) {
+            for (col = 0; col < moduleCount - 6; col++) {
+                if (qrCode.isDark(row, col) && 
+                        !qrCode.isDark(row, col + 1) && 
+                         qrCode.isDark(row, col + 2) && 
+                         qrCode.isDark(row, col + 3) && 
+                         qrCode.isDark(row, col + 4) && 
+                        !qrCode.isDark(row, col + 5) && 
+                         qrCode.isDark(row, col + 6) ) {
+                    lostPoint += 40;
+                }
+            }
+        }
+
+        for (col = 0; col < moduleCount; col++) {
+            for (row = 0; row < moduleCount - 6; row++) {
+                if (qrCode.isDark(row, col) &&
+                        !qrCode.isDark(row + 1, col) &&
+                         qrCode.isDark(row + 2, col) &&
+                         qrCode.isDark(row + 3, col) &&
+                         qrCode.isDark(row + 4, col) &&
+                        !qrCode.isDark(row + 5, col) &&
+                         qrCode.isDark(row + 6, col) ) {
+                    lostPoint += 40;
+                }
+            }
+        }
+
+        // LEVEL4
+        
+        var darkCount = 0;
+
+        for (col = 0; col < moduleCount; col++) {
+            for (row = 0; row < moduleCount; row++) {
+                if (qrCode.isDark(row, col) ) {
+                    darkCount++;
+                }
+            }
+        }
+        
+        var ratio = Math.abs(100 * darkCount / moduleCount / moduleCount - 50) / 5;
+        lostPoint += ratio * 10;
+
+        return lostPoint;       
+    }
+
+};
+
+module.exports = QRUtil;
+
+}};
+M["index"]={fn:function(module,exports,require){
+//---------------------------------------------------------------------
+// QRCode for JavaScript
+//
+// Copyright (c) 2009 Kazuhiko Arase
+//
+// URL: http://www.d-project.com/
+//
+// Licensed under the MIT license:
+//   http://www.opensource.org/licenses/mit-license.php
+//
+// The word "QR Code" is registered trademark of 
+// DENSO WAVE INCORPORATED
+//   http://www.denso-wave.com/qrcode/faqpatent-e.html
+//
+//---------------------------------------------------------------------
+// Modified to work in node for this project (and some refactoring)
+//---------------------------------------------------------------------
+
+var QR8bitByte = require('./QR8bitByte');
+var QRUtil = require('./QRUtil');
+var QRPolynomial = require('./QRPolynomial');
+var QRRSBlock = require('./QRRSBlock');
+var QRBitBuffer = require('./QRBitBuffer');
+
+function QRCode(typeNumber, errorCorrectLevel) {
+	this.typeNumber = typeNumber;
+	this.errorCorrectLevel = errorCorrectLevel;
+	this.modules = null;
+	this.moduleCount = 0;
+	this.dataCache = null;
+	this.dataList = [];
+}
+
+QRCode.prototype = {
+	
+	addData : function(data) {
+		var newData = new QR8bitByte(data);
+		this.dataList.push(newData);
+		this.dataCache = null;
+	},
+	
+	isDark : function(row, col) {
+		if (row < 0 || this.moduleCount <= row || col < 0 || this.moduleCount <= col) {
+			throw new Error(row + "," + col);
+		}
+		return this.modules[row][col];
+	},
+
+	getModuleCount : function() {
+		return this.moduleCount;
+	},
+	
+	make : function() {
+		// Calculate automatically typeNumber if provided is < 1
+		if (this.typeNumber < 1 ){
+			var typeNumber = 1;
+			for (typeNumber = 1; typeNumber < 40; typeNumber++) {
+				var rsBlocks = QRRSBlock.getRSBlocks(typeNumber, this.errorCorrectLevel);
+
+				var buffer = new QRBitBuffer();
+				var totalDataCount = 0;
+				for (var i = 0; i < rsBlocks.length; i++) {
+					totalDataCount += rsBlocks[i].dataCount;
+				}
+
+				for (var x = 0; x < this.dataList.length; x++) {
+					var data = this.dataList[x];
+					buffer.put(data.mode, 4);
+					buffer.put(data.getLength(), QRUtil.getLengthInBits(data.mode, typeNumber) );
+					data.write(buffer);
+				}
+				if (buffer.getLengthInBits() <= totalDataCount * 8)
+					break;
+			}
+			this.typeNumber = typeNumber;
+		}
+		this.makeImpl(false, this.getBestMaskPattern() );
+	},
+	
+	makeImpl : function(test, maskPattern) {
+		
+		this.moduleCount = this.typeNumber * 4 + 17;
+		this.modules = new Array(this.moduleCount);
+		
+		for (var row = 0; row < this.moduleCount; row++) {
+			
+			this.modules[row] = new Array(this.moduleCount);
+			
+			for (var col = 0; col < this.moduleCount; col++) {
+				this.modules[row][col] = null;//(col + row) % 3;
+			}
+		}
+	
+		this.setupPositionProbePattern(0, 0);
+		this.setupPositionProbePattern(this.moduleCount - 7, 0);
+		this.setupPositionProbePattern(0, this.moduleCount - 7);
+		this.setupPositionAdjustPattern();
+		this.setupTimingPattern();
+		this.setupTypeInfo(test, maskPattern);
+		
+		if (this.typeNumber >= 7) {
+			this.setupTypeNumber(test);
+		}
+	
+		if (this.dataCache === null) {
+			this.dataCache = QRCode.createData(this.typeNumber, this.errorCorrectLevel, this.dataList);
+		}
+	
+		this.mapData(this.dataCache, maskPattern);
+	},
+
+	setupPositionProbePattern : function(row, col)  {
+		
+		for (var r = -1; r <= 7; r++) {
+			
+			if (row + r <= -1 || this.moduleCount <= row + r) continue;
+			
+			for (var c = -1; c <= 7; c++) {
+				
+				if (col + c <= -1 || this.moduleCount <= col + c) continue;
+				
+				if ( (0 <= r && r <= 6 && (c === 0 || c === 6) ) || 
+                     (0 <= c && c <= 6 && (r === 0 || r === 6) ) || 
+                     (2 <= r && r <= 4 && 2 <= c && c <= 4) ) {
+					this.modules[row + r][col + c] = true;
+				} else {
+					this.modules[row + r][col + c] = false;
+				}
+			}		
+		}		
+	},
+	
+	getBestMaskPattern : function() {
+	
+		var minLostPoint = 0;
+		var pattern = 0;
+	
+		for (var i = 0; i < 8; i++) {
+			
+			this.makeImpl(true, i);
+	
+			var lostPoint = QRUtil.getLostPoint(this);
+	
+			if (i === 0 || minLostPoint >  lostPoint) {
+				minLostPoint = lostPoint;
+				pattern = i;
+			}
+		}
+	
+		return pattern;
+	},
+	
+	createMovieClip : function(target_mc, instance_name, depth) {
+	
+		var qr_mc = target_mc.createEmptyMovieClip(instance_name, depth);
+		var cs = 1;
+	
+		this.make();
+
+		for (var row = 0; row < this.modules.length; row++) {
+			
+			var y = row * cs;
+			
+			for (var col = 0; col < this.modules[row].length; col++) {
+	
+				var x = col * cs;
+				var dark = this.modules[row][col];
+			
+				if (dark) {
+					qr_mc.beginFill(0, 100);
+					qr_mc.moveTo(x, y);
+					qr_mc.lineTo(x + cs, y);
+					qr_mc.lineTo(x + cs, y + cs);
+					qr_mc.lineTo(x, y + cs);
+					qr_mc.endFill();
+				}
+			}
+		}
+		
+		return qr_mc;
+	},
+
+	setupTimingPattern : function() {
+		
+		for (var r = 8; r < this.moduleCount - 8; r++) {
+			if (this.modules[r][6] !== null) {
+				continue;
+			}
+			this.modules[r][6] = (r % 2 === 0);
+		}
+	
+		for (var c = 8; c < this.moduleCount - 8; c++) {
+			if (this.modules[6][c] !== null) {
+				continue;
+			}
+			this.modules[6][c] = (c % 2 === 0);
+		}
+	},
+	
+	setupPositionAdjustPattern : function() {
+	
+		var pos = QRUtil.getPatternPosition(this.typeNumber);
+		
+		for (var i = 0; i < pos.length; i++) {
+		
+			for (var j = 0; j < pos.length; j++) {
+			
+				var row = pos[i];
+				var col = pos[j];
+				
+				if (this.modules[row][col] !== null) {
+					continue;
+				}
+				
+				for (var r = -2; r <= 2; r++) {
+				
+					for (var c = -2; c <= 2; c++) {
+					
+						if (Math.abs(r) === 2 || 
+                            Math.abs(c) === 2 ||
+                            (r === 0 && c === 0) ) {
+							this.modules[row + r][col + c] = true;
+						} else {
+							this.modules[row + r][col + c] = false;
+						}
+					}
+				}
+			}
+		}
+	},
+	
+	setupTypeNumber : function(test) {
+	
+		var bits = QRUtil.getBCHTypeNumber(this.typeNumber);
+        var mod;
+	
+		for (var i = 0; i < 18; i++) {
+			mod = (!test && ( (bits >> i) & 1) === 1);
+			this.modules[Math.floor(i / 3)][i % 3 + this.moduleCount - 8 - 3] = mod;
+		}
+	
+		for (var x = 0; x < 18; x++) {
+			mod = (!test && ( (bits >> x) & 1) === 1);
+			this.modules[x % 3 + this.moduleCount - 8 - 3][Math.floor(x / 3)] = mod;
+		}
+	},
+	
+	setupTypeInfo : function(test, maskPattern) {
+	
+		var data = (this.errorCorrectLevel << 3) | maskPattern;
+		var bits = QRUtil.getBCHTypeInfo(data);
+        var mod;
+	
+		// vertical		
+		for (var v = 0; v < 15; v++) {
+	
+			mod = (!test && ( (bits >> v) & 1) === 1);
+	
+			if (v < 6) {
+				this.modules[v][8] = mod;
+			} else if (v < 8) {
+				this.modules[v + 1][8] = mod;
+			} else {
+				this.modules[this.moduleCount - 15 + v][8] = mod;
+			}
+		}
+	
+		// horizontal
+		for (var h = 0; h < 15; h++) {
+	
+			mod = (!test && ( (bits >> h) & 1) === 1);
+			
+			if (h < 8) {
+				this.modules[8][this.moduleCount - h - 1] = mod;
+			} else if (h < 9) {
+				this.modules[8][15 - h - 1 + 1] = mod;
+			} else {
+				this.modules[8][15 - h - 1] = mod;
+			}
+		}
+	
+		// fixed module
+		this.modules[this.moduleCount - 8][8] = (!test);
+	
+	},
+	
+	mapData : function(data, maskPattern) {
+		
+		var inc = -1;
+		var row = this.moduleCount - 1;
+		var bitIndex = 7;
+		var byteIndex = 0;
+		
+		for (var col = this.moduleCount - 1; col > 0; col -= 2) {
+	
+			if (col === 6) col--;
+	
+			while (true) {
+	
+				for (var c = 0; c < 2; c++) {
+					
+					if (this.modules[row][col - c] === null) {
+						
+						var dark = false;
+	
+						if (byteIndex < data.length) {
+							dark = ( ( (data[byteIndex] >>> bitIndex) & 1) === 1);
+						}
+	
+						var mask = QRUtil.getMask(maskPattern, row, col - c);
+	
+						if (mask) {
+							dark = !dark;
+						}
+						
+						this.modules[row][col - c] = dark;
+						bitIndex--;
+	
+						if (bitIndex === -1) {
+							byteIndex++;
+							bitIndex = 7;
+						}
+					}
+				}
+								
+				row += inc;
+	
+				if (row < 0 || this.moduleCount <= row) {
+					row -= inc;
+					inc = -inc;
+					break;
+				}
+			}
+		}
+		
+	}
+
+};
+
+QRCode.PAD0 = 0xEC;
+QRCode.PAD1 = 0x11;
+
+QRCode.createData = function(typeNumber, errorCorrectLevel, dataList) {
+	
+	var rsBlocks = QRRSBlock.getRSBlocks(typeNumber, errorCorrectLevel);
+	
+	var buffer = new QRBitBuffer();
+	
+	for (var i = 0; i < dataList.length; i++) {
+		var data = dataList[i];
+		buffer.put(data.mode, 4);
+		buffer.put(data.getLength(), QRUtil.getLengthInBits(data.mode, typeNumber) );
+		data.write(buffer);
+	}
+
+	// calc num max data.
+	var totalDataCount = 0;
+	for (var x = 0; x < rsBlocks.length; x++) {
+		totalDataCount += rsBlocks[x].dataCount;
+	}
+
+	if (buffer.getLengthInBits() > totalDataCount * 8) {
+		throw new Error("code length overflow. (" + 
+            buffer.getLengthInBits() + 
+            ">" +  
+            totalDataCount * 8 + 
+            ")");
+	}
+
+	// end code
+	if (buffer.getLengthInBits() + 4 <= totalDataCount * 8) {
+		buffer.put(0, 4);
+	}
+
+	// padding
+	while (buffer.getLengthInBits() % 8 !== 0) {
+		buffer.putBit(false);
+	}
+
+	// padding
+	while (true) {
+		
+		if (buffer.getLengthInBits() >= totalDataCount * 8) {
+			break;
+		}
+		buffer.put(QRCode.PAD0, 8);
+		
+		if (buffer.getLengthInBits() >= totalDataCount * 8) {
+			break;
+		}
+		buffer.put(QRCode.PAD1, 8);
+	}
+
+	return QRCode.createBytes(buffer, rsBlocks);
+};
+
+QRCode.createBytes = function(buffer, rsBlocks) {
+
+	var offset = 0;
+	
+	var maxDcCount = 0;
+	var maxEcCount = 0;
+	
+	var dcdata = new Array(rsBlocks.length);
+	var ecdata = new Array(rsBlocks.length);
+	
+	for (var r = 0; r < rsBlocks.length; r++) {
+
+		var dcCount = rsBlocks[r].dataCount;
+		var ecCount = rsBlocks[r].totalCount - dcCount;
+
+		maxDcCount = Math.max(maxDcCount, dcCount);
+		maxEcCount = Math.max(maxEcCount, ecCount);
+		
+		dcdata[r] = new Array(dcCount);
+		
+		for (var i = 0; i < dcdata[r].length; i++) {
+			dcdata[r][i] = 0xff & buffer.buffer[i + offset];
+		}
+		offset += dcCount;
+		
+		var rsPoly = QRUtil.getErrorCorrectPolynomial(ecCount);
+		var rawPoly = new QRPolynomial(dcdata[r], rsPoly.getLength() - 1);
+
+		var modPoly = rawPoly.mod(rsPoly);
+		ecdata[r] = new Array(rsPoly.getLength() - 1);
+		for (var x = 0; x < ecdata[r].length; x++) {
+            var modIndex = x + modPoly.getLength() - ecdata[r].length;
+			ecdata[r][x] = (modIndex >= 0)? modPoly.get(modIndex) : 0;
+		}
+
+	}
+	
+	var totalCodeCount = 0;
+	for (var y = 0; y < rsBlocks.length; y++) {
+		totalCodeCount += rsBlocks[y].totalCount;
+	}
+
+	var data = new Array(totalCodeCount);
+	var index = 0;
+
+	for (var z = 0; z < maxDcCount; z++) {
+		for (var s = 0; s < rsBlocks.length; s++) {
+			if (z < dcdata[s].length) {
+				data[index++] = dcdata[s][z];
+			}
+		}
+	}
+
+	for (var xx = 0; xx < maxEcCount; xx++) {
+		for (var t = 0; t < rsBlocks.length; t++) {
+			if (xx < ecdata[t].length) {
+				data[index++] = ecdata[t][xx];
+			}
+		}
+	}
+
+	return data;
+
+};
+
+module.exports = QRCode;
+
+}};
+var QRCode=req("index"),ECL=req("QRErrorCorrectLevel");
+window.QRCode={toCanvas:function(canvas,text,opt){opt=opt||{};var t=1,qr;for(;t<=20;t++){try{qr=new QRCode(t,ECL.M);qr.addData(text);qr.make();break;}catch(e){qr=null;}}if(!qr)throw new Error("QR too long");var n=qr.getModuleCount(),size=opt.width||200,margin=opt.margin==null?1:opt.margin,cell=Math.floor(size/(n+margin*2)),px=cell*(n+margin*2);canvas.width=px;canvas.height=px;canvas.style.width=size+"px";canvas.style.height=size+"px";var g=canvas.getContext("2d");g.fillStyle="#fff";g.fillRect(0,0,px,px);g.fillStyle="#000";for(var r=0;r<n;r++)for(var c=0;c<n;c++)if(qr.isDark(r,c))g.fillRect((c+margin)*cell,(r+margin)*cell,cell,cell);}};
+})();
+</script>
+<script type="module">
+/* ============================================================
+   정페이 — 정터 결제·흥정 기록 앱
+   규칙: 정가 ≤ 50,000원 · 흥정가는 셀러가 입력(≤ 정가) · 할인 합계 = 흥정 점수
+   백엔드: Firebase Firestore(여러 폰 공용) / 데모(이 기기 localStorage)
+   ============================================================ */
+const RULE = { MAX_PRICE: 50000, UNIT: 100, MAX_ITEMS: 20, ADMIN_PIN: "1215", TOPUP_STEP: 1000 };
+// ▼ 운영 시 여기에 Firebase 설정을 넣으면 모든 폰이 자동으로 서버 모드로 켜집니다.
+const APP = "admin"; // buyer | seller | admin  (빌드 시 치환)
+const BUYER_URL = ""; // 셀러 QR이 가리킬 손님 앱 주소 (빈 값이면 현재 주소에서 추정)
+const FIREBASE_CONFIG = null; // 예: { apiKey:"...", authDomain:"...", projectId:"...", appId:"..." }
+
+const $ = s => document.querySelector(s);
+const won = n => (Number(n) || 0).toLocaleString("ko-KR") + "원";
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const pad3 = n => String(n).padStart(3, "0");
+const normPhone = v => { const d = String(v || "").replace(/\D/g, ""); return d.length === 11 ? d.replace(/(\d{3})(\d{4})(\d{4})/, "$1-$2-$3") : d.length === 10 ? d.replace(/(\d{3})(\d{3})(\d{4})/, "$1-$2-$3") : d; };
+const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+function toast(m) { const t = $("#toast"); t.textContent = m; t.style.display = "block"; clearTimeout(toast._t); toast._t = setTimeout(() => t.style.display = "none", 2600); }
+function ask(msg, { input = null, okText = "확인" } = {}) {
+  return new Promise(res => {
+    const d = $("#ask"), inp = $("#askInput");
+    $("#askMsg").textContent = msg; inp.hidden = input == null; inp.value = input ?? ""; $("#askOk").textContent = okText;
+    inp.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); d.close("ok"); } };
+    d.onclose = () => res(d.returnValue === "ok" ? (input == null ? true : inp.value) : (input == null ? false : null));
+    d.returnValue = ""; d.showModal(); if (input != null) inp.focus();
+  });
+}
+const LS = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+             set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }, del(k) { try { localStorage.removeItem(k); } catch {} } };
+
+/* ============================================================
+   백엔드 추상화 — watch / add / update / transact
+   ============================================================ */
+const COLLS = ["users", "items", "requests", "txns", "settings"];
+
+function makeLocalBackend() {
+  const KEY = "jp_demo";
+  const bc = ("BroadcastChannel" in window) ? new BroadcastChannel("jp_demo") : null;
+  let data = LS.get(KEY, null) || { users: {}, items: {}, requests: {}, txns: {}, settings: {}, meta: { itemNo: 0 } };
+  COLLS.forEach(c => data[c] ||= {});
+  const subs = {};
+  const save = () => { LS.set(KEY, data); bc?.postMessage("sync"); };
+  const emit = c => (subs[c] || []).forEach(cb => cb(Object.values(data[c])));
+  const emitAll = () => COLLS.forEach(emit);
+  let lastRaw = localStorage.getItem(KEY) || "";
+  const resync = () => { const raw = localStorage.getItem(KEY) || ""; if (raw !== lastRaw) { lastRaw = raw; data = LS.get(KEY, data); emitAll(); } };
+  bc && (bc.onmessage = resync);
+  window.addEventListener("storage", e => { if (e.key === KEY) resync(); });
+  setInterval(resync, 1500); // 같은 기기 다른 탭 데모용 보조 동기화
+  const save0 = save; const saveSync = () => { save0(); lastRaw = localStorage.getItem(KEY) || ""; };
+  return {
+    name: "demo",
+    watch(c, cb) { (subs[c] ||= []).push(cb); cb(Object.values(data[c])); },
+    async add(c, doc) { const id = doc.id || uid(); data[c][id] = { ...doc, id }; saveSync(); emit(c); return id; },
+    async update(c, id, patch) { if (!data[c][id]) throw new Error("없는 문서"); Object.assign(data[c][id], patch); saveSync(); emit(c); },
+    async transact(fn) {
+      const snap = JSON.parse(JSON.stringify(data));
+      const t = {
+        get: async (c, id) => c === "meta" ? (snap.meta) : (snap[c][id] ? { ...snap[c][id] } : null),
+        set: (c, id, doc) => { if (c === "meta") Object.assign(snap.meta, doc); else snap[c][id] = { ...doc, id }; },
+        update: (c, id, patch) => { if (c === "meta") Object.assign(snap.meta, patch); else Object.assign(snap[c][id], patch); },
+      };
+      const r = await fn(t); data = snap; saveSync(); emitAll(); return r;
+    },
+    wipe() { data = { users: {}, items: {}, requests: {}, txns: {}, settings: {}, meta: { itemNo: 0 } }; saveSync(); emitAll(); },
+  };
+}
+
+async function makeFirebaseBackend(cfg) {
+  const { initializeApp } = await import("https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js");
+  const F = await import("https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js");
+  const app = initializeApp(cfg);
+  const db = F.getFirestore(app);
+  const col = c => F.collection(db, c);
+  return {
+    name: "firebase",
+    watch(c, cb) { F.onSnapshot(col(c), s => cb(s.docs.map(d => ({ id: d.id, ...d.data() }))), e => { console.error(e); toast("서버 읽기 오류: " + e.code); }); },
+    async add(c, doc) { const id = doc.id || uid(); await F.setDoc(F.doc(db, c, id), { ...doc, id }); return id; },
+    async update(c, id, patch) { await F.updateDoc(F.doc(db, c, id), patch); },
+    async transact(fn) {
+      return F.runTransaction(db, async tx => {
+        const reads = [];
+        const t = {
+          get: async (c, id) => { const s = await tx.get(F.doc(db, c, c === "meta" ? "counters" : id)); return s.exists() ? s.data() : (c === "meta" ? { itemNo: 0 } : null); },
+          set: (c, id, doc) => tx.set(F.doc(db, c, c === "meta" ? "counters" : id), c === "meta" ? doc : { ...doc, id }, { merge: c === "meta" }),
+          update: (c, id, patch) => tx.set(F.doc(db, c, c === "meta" ? "counters" : id), patch, { merge: true }),
+        };
+        return fn(t);
+      });
+    },
+    wipe() { toast("서버 데이터는 Firebase 콘솔에서 지우세요"); },
+  };
+}
+
+/* ============================================================
+   상태
+   ============================================================ */
+const S = { users: [], items: [], requests: [], txns: [], settings: [], me: null, be: null, screen: "wallet", adminOpen: false, buyItem: null };
+const byId = (arr, id) => arr.find(x => x.id === id);
+const me = () => byId(S.users, S.me?.id) || S.me;
+const myItems = () => S.items.filter(i => i.sellerId === S.me?.id).sort((a, b) => a.no - b.no);
+const nowIso = () => new Date().toISOString();
+
+function setupApp() {
+  const t = { all: ["情 정페이", "정터(情터) 결제 · 흥정 기록 앱 (통합 데모)"], buyer: ["情 정페이", "정터(情터) 손님용 · 잔액 확인 · QR로 사기"], seller: ["情 정페이 셀러", "정터(情터) 셀러용 · 물건 등록 · 흥정 확정"], admin: ["情 정페이 환전소", ""] }[APP] || ["情 정페이", ""];
+  $("#appTitle").textContent = t[0]; $("#gateSub").textContent = t[1]; document.title = t[0];
+  if (APP === "all") { $("#tabAdmin").hidden = location.hash !== "#admin"; window.addEventListener("hashchange", () => { if (location.hash === "#admin") { $("#tabAdmin").hidden = false; if (S.me) go("admin"); } }); }
+  else document.querySelectorAll("nav.tabs button[data-go]").forEach(b => b.hidden = b.dataset.go !== ({ buyer: "wallet", seller: "seller", admin: "admin" })[APP]);
+  if (APP === "admin") { $("#tabs").hidden = false; $("#tabLogout").hidden = true; go("admin"); }
+}
+async function boot() {
+  setupApp();
+  const cfg = FIREBASE_CONFIG || LS.get("jp_fbcfg", null);
+  if (cfg) {
+    try { S.be = await makeFirebaseBackend(cfg); }
+    catch (e) { console.error(e); toast("Firebase 연결 실패 → 데모 모드"); }
+  }
+  if (!S.be) S.be = makeLocalBackend();
+  const live = S.be.name === "firebase";
+  $("#modeBadge").textContent = live ? "LIVE" : "데모";
+  $("#modeBadge").classList.toggle("live", live);
+  $("#fbStatus").textContent = live ? "✅ Firebase 연결됨 — 모든 폰이 같은 데이터를 봅니다." : "⚠️ 데모 모드 — 이 기기(브라우저)에만 저장됩니다. 여러 폰에서 쓰려면 Firebase 설정을 넣으세요.";
+  if (cfg && !FIREBASE_CONFIG) $("#fbCfg").value = JSON.stringify(cfg, null, 2);
+  COLLS.forEach(c => S.be.watch(c, rows => { S[c] = rows; render(); }));
+  if (APP !== "admin") { const saved = LS.get("jp_me_" + APP, null); if (saved) enter(saved); }
+}
+
+/* ============================================================
+   가입 / 로그인
+   ============================================================ */
+$("#gGo").onclick = async () => {
+  const name = $("#gName").value.trim(), sid = normPhone($("#gSid").value);
+  if (!name || !sid) return toast("이름과 전화번호를 입력하세요");
+  if (!/^01\d{8,9}$/.test(sid.replace(/-/g, ""))) return toast("전화번호를 다시 확인해 주세요 (010-1234-5678)");
+  const exist = S.users.find(u => u.sid === sid);
+  if (exist && exist.name !== name) return toast(`이 번호는 "${exist.name}"님으로 가입돼 있어요. 이름을 확인해 주세요`);
+  if (!(await ask(`이 정보가 맞나요?\n\n이름: ${name}\n전화번호: ${sid}${exist ? "\n\n(기존 지갑으로 들어갑니다)" : ""}`, { okText: exist ? "들어가기" : "가입하기" }))) return;
+  if (exist) { enter(exist); return toast(`${exist.name}님, 다시 오셨네요`); }
+  const u = { id: uid(), name, sid, balance: 0, isSeller: false, createdAt: nowIso() };
+  await S.be.add("users", u); enter(u);
+};
+async function becomeSeller(u) {
+  if (u.isSeller && u.sellerNo) return;
+  await S.be.transact(async t => {
+    const meta = await t.get("meta", "counters"); const cur = await t.get("users", u.id);
+    if (cur?.sellerNo) return;
+    const no = (meta?.sellerNo || 0) + 1;
+    t.update("meta", "counters", { sellerNo: no }); t.update("users", u.id, { isSeller: true, sellerNo: no });
+  });
+}
+function enter(u) { S.me = u; if (APP === "all" && location.hash === "#admin") { $("#tabAdmin").hidden = false; S.screen = "admin"; } if (APP === "seller") { S.screen = "seller"; becomeSeller(u).catch(e => toast("셀러 등록 실패: " + e.message)); } LS.set("jp_me_" + APP, { id: u.id, name: u.name, sid: u.sid }); $("#tabs").hidden = false; go(S.screen === "gate" ? "wallet" : S.screen); render(); }
+$("#tabLogout").onclick = async () => { if (await ask("이 기기에서 나갈까요? 잔액은 같은 전화번호로 다시 들어오면 그대로예요.", { okText: "나가기" })) { LS.del("jp_me_" + APP); S.me = null; $("#gName").value = ""; $("#gSid").value = ""; $("#buyCard").hidden = true; S.buyItem = null; $("#tabs").hidden = true; go("gate"); render(); } };
+
+function go(name) {
+  S.screen = name;
+  document.querySelectorAll("nav.tabs button[data-go]").forEach(b => b.classList.toggle("on", b.dataset.go === name));
+  document.querySelectorAll("section.screen").forEach(s => s.classList.toggle("on", s.id === "s-" + name));
+  if (name !== "wallet") stopScan();
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll("nav.tabs button[data-go]").forEach(b => b.onclick = () => go(b.dataset.go));
+
+/* ============================================================
+   렌더
+   ============================================================ */
+function render() {
+  const m = me();
+  $("#whoBox").innerHTML = m ? `<b>${esc(m.name)}</b><br>${esc(m.sid)}` : "";
+  if (APP === "admin") { if (S.adminOpen) renderAdmin(); return; }
+  if (!m) return;
+  $("#tabSeller").hidden = APP === "all" ? !m.isSeller : APP !== "seller";
+  $("#wBecomeSeller").hidden = APP !== "all" || !!m.isSeller;
+  renderWallet(m); if (m.isSeller) renderSeller(m); if (S.adminOpen) renderAdmin();
+}
+
+function renderWallet(m) {
+  $("#wBal").textContent = won(m.balance);
+  const pend = S.requests.filter(r => r.status === "pending" && r.buyerId === m.id);
+  const topups = pend.filter(r => r.type === "topup").reduce((a, r) => a + r.amount, 0);
+  const pays = pend.filter(r => r.type === "pay");
+  $("#wPending").textContent = [topups ? `충전 승인 대기 ${won(topups)}` : "", pays.length ? `결제 확정 대기 ${pays.length}건` : ""].filter(Boolean).join(" · ");
+  const buys = S.txns.filter(t => t.type === "pay" && t.buyerId === m.id).sort((a, b) => b.at.localeCompare(a.at));
+  $("#wBuys").innerHTML = buys.length ? buys.map(t => `<div class="item"><div class="ph">🧾</div><div class="meta"><b>${esc(t.itemName)}</b><small>${esc(t.sellerName)} · ${t.discount > 0 ? `흥정으로 ${won(t.discount)} 아낌` : "정가 구매"} · ${new Date(t.at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</small></div><div class="price">${won(t.amount)}</div></div>`).join("") : '<div class="muted">아직 없음</div>';
+  // 결제 대기 카드 (내가 요청한 것)
+  if (pays.length && !S.buyItem) {
+    const r = pays[0];
+    $("#buyCard").hidden = false;
+    $("#buyCard").innerHTML = `<div class="done-big"><div class="ic">⏳</div><h3>${esc(r.itemName)}</h3><p class="muted">셀러가 가격을 확정하는 중…<br>흥정하셨다면 지금 깎아달라고 말하세요!</p><div class="won" style="font-size:36px">${won(r.listPrice)}</div><div class="muted" style="font-size:13px">정가 기준 · 확정가는 셀러가 입력</div><div style="height:10px"></div><button class="btn ghost small" id="buyCancel">요청 취소</button></div>`;
+    $("#buyCancel").onclick = () => S.be.update("requests", r.id, { status: "cancel" });
+  } else if (!S.buyItem) {
+    // 방금 확정된 결제 알림
+    const last = buys[0];
+    if (last && LS.get("jp_lastSeen", "") !== last.id && Date.now() - new Date(last.at).getTime() < 120000) {
+      LS.set("jp_lastSeen", last.id);
+      $("#buyCard").hidden = false;
+      $("#buyCard").innerHTML = `<div class="done-big"><div class="ic">✅</div><h3>결제 완료</h3><p>${esc(last.itemName)} · <b class="won" style="font-size:28px">${won(last.amount)}</b></p>${last.discount > 0 ? `<span class="badge green">흥정 성공! ${won(last.discount)} 할인</span>` : `<span class="badge gray">정가 구매</span>`}<div style="height:10px"></div><button class="btn ghost small" onclick="this.closest('.card').hidden=true">닫기</button></div>`;
+    }
+  }
+}
+
+function renderBuy(item) {
+  S.buyItem = item;
+  const m = me();
+  const seller = byId(S.users, item.sellerId);
+  const c = $("#buyCard"); c.hidden = false;
+  const sold = item.status !== "판매중";
+  c.innerHTML = `
+    <div class="item" style="border:0;padding:0">${item.photo ? `<img src="${item.photo}" alt="">` : `<div class="ph">🎁</div>`}
+      <div class="meta"><span class="no">No.${pad3(item.no)}</span><b style="font-size:20px">${esc(item.name)}</b><small>셀러 ${esc(seller?.name || item.sellerName)}</small></div>
+      <div class="price" style="font-size:28px">${won(item.price)}</div></div>
+    <p class="muted" style="font-size:13px;margin:10px 0">정가(情價)는 이미 정으로 할인된 가격이에요. 더 깎고 싶으면 셀러에게 말로 흥정 → 셀러가 확정가를 입력합니다.</p>
+    ${sold ? `<span class="badge gray">이미 판매된 물건</span>` : m.balance < item.price ? `<span class="badge">잔액 부족 — 흥정으로 깎이면 결제될 수 있어요</span>` : ""}
+    <div class="row" style="margin-top:10px"><button class="btn ok" id="buyGo" ${sold ? "disabled" : ""}>🤝 이 물건 살게요 (결제 요청)</button><button class="btn ghost" id="buyClose" style="flex:0 0 auto;width:auto">닫기</button></div>`;
+  $("#buyClose").onclick = () => { const s2 = byId(S.users, item.sellerId); if (s2?.sellerNo) renderShop(s2); else { S.buyItem = null; c.hidden = true; render(); } };
+  $("#buyGo").onclick = async () => {
+    if (S.requests.some(r => r.status === "pending" && r.type === "pay" && r.buyerId === m.id)) return toast("확정 대기 중인 결제가 있어요. 먼저 끝내 주세요");
+    await S.be.add("requests", { type: "pay", status: "pending", buyerId: m.id, buyerName: m.name, itemId: item.id, itemNo: item.no, itemName: item.name, sellerId: item.sellerId, sellerName: item.sellerName, listPrice: item.price, createdAt: nowIso() });
+    S.buyItem = null; toast("셀러에게 결제 요청을 보냈어요"); render();
+  };
+}
+function openShop(no) {
+  const seller = S.users.find(u => u.sellerNo === Number(no));
+  if (!seller) return toast("없는 셀러 번호예요");
+  if (seller.id === S.me.id) return toast("내 가게예요");
+  renderShop(seller); window.scrollTo(0, 0);
+}
+function renderShop(seller) {
+  S.buyItem = { shop: seller.id };
+  const items = S.items.filter(i => i.sellerId === seller.id).sort((a, b) => a.no - b.no);
+  const c = $("#buyCard"); c.hidden = false;
+  c.innerHTML = `<h3 style="margin-top:0">🏪 ${esc(seller.name)}님의 가게 <span class="no">No.${pad3(seller.sellerNo)}</span></h3>
+    <p class="muted" style="font-size:13px;margin:0 0 8px">사고 싶은 물건을 고르세요. 정가(情價)는 이미 정으로 할인된 가격 — 더 깎고 싶으면 셀러에게 말로 흥정하세요.</p>
+    <div class="list">${items.length ? items.map(i => `<div class="item ${i.status !== "판매중" ? "sold" : ""}" ${i.status === "판매중" ? `data-pick="${i.id}" style="cursor:pointer"` : ""}>${i.photo ? `<img src="${i.photo}" alt="">` : `<div class="ph">🎁</div>`}<div class="meta"><span class="no">No.${pad3(i.no)}</span><b>${esc(i.name)}</b><small>${i.status === "판매중" ? "탭해서 고르기" : i.status}</small></div><div class="price">${won(i.price)}</div></div>`).join("") : '<div class="muted">아직 등록된 물건이 없어요</div>'}</div>
+    <div class="row" style="margin-top:10px"><button class="btn ghost" id="buyClose">닫기</button></div>`;
+  $("#buyClose").onclick = () => { S.buyItem = null; c.hidden = true; render(); };
+  c.querySelectorAll("[data-pick]").forEach(el => el.onclick = () => { const it = byId(S.items, el.dataset.pick); if (it) renderBuy(it); });
+}
+$("#wNoGo").onclick = () => openShop($("#wNo").value);
+$("#wNo").onkeydown = e => { if (e.key === "Enter") $("#wNoGo").click(); };
+$("#wTopup").onclick = async () => {
+  const v = await ask("충전할 금액 (1,000원 단위)\n환전소에서 현금을 내고 요청하면 운영진이 승인해요.", { input: 5000, okText: "충전 요청" });
+  if (v == null) return; const amt = Number(v);
+  if (!amt || amt % RULE.TOPUP_STEP !== 0 || amt > 200000) return toast("1,000원 단위로 입력하세요");
+  const m = me();
+  await S.be.add("requests", { type: "topup", status: "pending", buyerId: m.id, buyerName: m.name, sid: m.sid, amount: amt, createdAt: nowIso() });
+  toast("충전 요청 보냄 — 운영진 승인을 기다리세요");
+};
+$("#wSellerOn").onclick = async () => { if (await ask("셀러로 등록할까요? 물건 등록·QR·흥정 확정 탭이 열려요.", { okText: "셀러 등록" })) { await becomeSeller(me()); toast("셀러 탭이 열렸어요"); } };
+
+/* ---- QR 스캔: 앱 안(BarcodeDetector) → 안 되면 기본 카메라 앱 안내 ---- */
+let scanStream = null, scanTimer = null;
+$("#wScan").onclick = async () => {
+  if (!("BarcodeDetector" in window) || !navigator.mediaDevices?.getUserMedia) return toast("폰 기본 카메라로 QR을 찍으면 이 앱이 열려요. 또는 번호를 입력하세요.");
+  try {
+    scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+  } catch { return toast("카메라를 열 수 없어요. 번호를 입력하세요."); }
+  const v = $("#scanVideo"); v.srcObject = scanStream; $("#scanBox").hidden = false;
+  const det = new BarcodeDetector({ formats: ["qr_code"] });
+  scanTimer = setInterval(async () => {
+    try { const codes = await det.detect(v); if (codes[0]) { const no = parseQr(codes[0].rawValue); if (no) { stopScan(); openShop(no); } } } catch {}
+  }, 400);
+};
+function stopScan() { clearInterval(scanTimer); scanStream?.getTracks().forEach(t => t.stop()); scanStream = null; $("#scanBox").hidden = true; }
+$("#scanStop").onclick = stopScan;
+function parseQr(s) { const m = /(?:[?&#](?:seller|item)[=-]|^JP:)(\d+)/.exec(s || ""); return m ? Number(m[1]) : null; }
+function itemUrl(no) { const base = BUYER_URL && !BUYER_URL.startsWith("__") ? BUYER_URL : location.href.replace(/seller\.html/, "index.html"); const u = new URL(base); u.search = ""; u.hash = "seller-" + no; return u.toString(); }
+
+/* ============================================================
+   셀러
+   ============================================================ */
+let photoData = "";
+$("#iPhotoBtn").onclick = () => $("#iPhoto").click();
+$("#iPhoto").onchange = e => { const f = e.target.files[0]; if (!f) return; const img = new Image(); img.onload = () => {
+  const s = Math.min(1, 320 / Math.max(img.width, img.height)); const c = document.createElement("canvas"); c.width = img.width * s; c.height = img.height * s;
+  c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); photoData = c.toDataURL("image/jpeg", 0.7);
+  $("#iPrev").src = photoData; $("#iPrev").style.display = "block"; $("#iPhotoClear").hidden = false; }; img.src = URL.createObjectURL(f); e.target.value = ""; };
+$("#iPhotoClear").onclick = () => { photoData = ""; $("#iPrev").style.display = "none"; $("#iPhotoClear").hidden = true; };
+$("#iSubmit").onclick = async () => {
+  const m = me(); const name = $("#iName").value.trim(), price = Number($("#iPrice").value);
+  if (!name) return toast("물건 이름을 입력하세요");
+  if (!price || price % RULE.UNIT !== 0) return toast("정가는 100원 단위로 입력하세요");
+  if (price > RULE.MAX_PRICE) return toast("정가는 최대 50,000원이에요");
+  const mine = myItems();
+  if (mine.length >= RULE.MAX_ITEMS) return toast(`물건은 최대 ${RULE.MAX_ITEMS}개까지예요`);
+  if (mine.some(i => i.name === name)) return toast("같은 이름의 물건이 이미 있어요 (예: 전공책 1, 전공책 2)");
+  $("#iSubmit").disabled = true;
+  try {
+    const id = uid();
+    const no = await S.be.transact(async t => {
+      const meta = await t.get("meta", "counters"); const no = (meta?.itemNo || 0) + 1;
+      t.update("meta", "counters", { itemNo: no });
+      t.set("items", id, { id, no, sellerId: m.id, sellerName: m.name, name, price, photo: photoData, status: "판매중", createdAt: nowIso() });
+      return no;
+    });
+    $("#sDoneNo").textContent = pad3(no); $("#sDoneName").textContent = `${name} · ${won(price)}`;
+    $("#sForm").hidden = true; $("#sDone").hidden = false; window.scrollTo(0, 0);
+  } catch (e) { console.error(e); toast("등록 실패: " + (e.message || e)); }
+  $("#iSubmit").disabled = false;
+};
+$("#sDoneAgain").onclick = () => { $("#iName").value = ""; $("#iPrice").value = ""; $("#iPhotoClear").click(); $("#sForm").hidden = false; $("#sDone").hidden = true; };
+
+function renderSeller(m) {
+  const mine = myItems();
+  const sales = S.txns.filter(t => t.type === "pay" && t.sellerId === m.id);
+  const rev = sales.reduce((a, t) => a + t.amount, 0), disc = sales.reduce((a, t) => a + t.discount, 0);
+  $("#sCount").textContent = `${mine.length}/${RULE.MAX_ITEMS}`;
+  $("#sSales").textContent = sales.length; $("#sRev").textContent = won(rev); $("#sDisc").textContent = won(disc);
+  const rank = ranking(); const myRank = rank.findIndex(r => r.sellerId === m.id) + 1;
+  $("#sStatusBox").className = "sellerbox " + (myRank === 1 ? "open" : "");
+  $("#sStatusText").textContent = myRank ? `🏆 흥정왕 랭킹 ${myRank}위 (할인 합계 ${won(disc)})` : "아직 흥정 기록 없음 — 깎아주면 랭킹에 올라가요";
+  $("#sItems").innerHTML = mine.length ? mine.map(i => `<div class="item ${i.status !== "판매중" ? "sold" : ""}">${i.photo ? `<img src="${i.photo}" alt="">` : `<div class="ph">🎁</div>`}<div class="meta"><span class="no">No.${pad3(i.no)}</span><b>${esc(i.name)}</b><small>${i.status}</small></div><div class="price">${won(i.price)}</div></div>`).join("") : '<div class="muted">아직 없음</div>';
+  if (m.sellerNo && renderSeller._qrNo !== m.sellerNo) { renderSeller._qrNo = m.sellerNo; $("#sMyNo").textContent = "셀러 No." + pad3(m.sellerNo); try { QRCode.toCanvas($("#sMyQr"), itemUrl(m.sellerNo), { width: 200, margin: 1 }); } catch (e) { console.error(e); } }
+  // 결제 요청
+  const reqs = S.requests.filter(r => r.status === "pending" && r.type === "pay" && r.sellerId === m.id).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  $("#sellerDot").hidden = !reqs.length;
+  $("#sReqs").innerHTML = reqs.map(r => {
+    const buyer = byId(S.users, r.buyerId);
+    return `<div class="req" data-id="${r.id}">
+      <div class="head"><b>🤝 ${esc(r.buyerName)}님이 사겠대요</b><span class="no">No.${pad3(r.itemNo)}</span></div>
+      <div class="sub">${esc(r.itemName)} · 정가 ${won(r.listPrice)} · 손님 잔액 ${won(buyer?.balance)}</div>
+      <div class="chips">${[0, 500, 1000, 2000, 3000, 5000].map(d => `<button class="chip" data-d="${d}">${d ? "−" + d.toLocaleString() : "정가"}</button>`).join("")}</div>
+      <div class="pricebox"><span>확정가</span><input type="number" class="fin" step="100" inputmode="numeric" value="${r.listPrice}"><span>원</span></div>
+      <div class="disc"></div>
+      <div class="row"><button class="btn ok conf">✅ 이 가격에 확정</button><button class="btn ghost rej" style="flex:0 0 auto;width:auto">거절</button></div>
+    </div>`; }).join("");
+  $("#sReqs").querySelectorAll(".req").forEach(box => {
+    const r = byId(S.requests, box.dataset.id), inp = box.querySelector(".fin"), disc = box.querySelector(".disc");
+    const upd = () => { const p = Number(inp.value); const d = r.listPrice - p; disc.textContent = d > 0 ? `흥정 할인 ${won(d)} → 내 흥정 점수 +${won(d)}` : d < 0 ? "정가보다 높게는 안 돼요" : ""; };
+    inp.oninput = upd; upd();
+    box.querySelectorAll(".chip").forEach(c => c.onclick = () => { inp.value = Math.max(0, r.listPrice - Number(c.dataset.d)); upd(); });
+    box.querySelector(".rej").onclick = async () => { if (await ask("이 결제 요청을 거절할까요?", { okText: "거절" })) S.be.update("requests", r.id, { status: "cancel" }); };
+    box.querySelector(".conf").onclick = () => confirmPay(r, Number(inp.value));
+  });
+}
+async function confirmPay(r, final) {
+  if (!Number.isFinite(final) || final < 0 || final % RULE.UNIT !== 0) return toast("확정가는 100원 단위예요");
+  if (final > r.listPrice) return toast("정가보다 높게는 안 돼요");
+  try {
+    await S.be.transact(async t => {
+      const req = await t.get("requests", r.id); if (!req || req.status !== "pending") throw new Error("이미 처리된 요청");
+      const item = await t.get("items", r.itemId); if (!item || item.status !== "판매중") throw new Error("이미 판매된 물건");
+      const buyer = await t.get("users", r.buyerId), seller = await t.get("users", r.sellerId);
+      if (!buyer || !seller) throw new Error("회원 정보 없음");
+      if ((buyer.balance || 0) < final) throw new Error(`손님 잔액 부족 (${won(buyer.balance)}) — 충전 후 다시`);
+      t.update("users", buyer.id, { balance: (buyer.balance || 0) - final });
+      t.update("users", seller.id, { balance: (seller.balance || 0) + final, sales: (seller.sales || 0) + final });
+      t.update("items", item.id, { status: "판매됨", soldPrice: final, soldAt: nowIso(), buyerId: buyer.id });
+      t.update("requests", req.id, { status: "done", finalPrice: final, doneAt: nowIso() });
+      t.set("txns", uid(), { type: "pay", buyerId: buyer.id, buyerName: buyer.name, sellerId: seller.id, sellerName: seller.name, itemId: item.id, itemNo: item.no, itemName: item.name, listPrice: r.listPrice, amount: final, discount: r.listPrice - final, at: nowIso() });
+    });
+    toast(`확정! ${won(final)} 받았어요`);
+  } catch (e) { toast(e.message || "실패"); }
+}
+$("#sPayout").onclick = async () => {
+  const m = me(); const amt = m.balance || 0;
+  if (amt <= 0) return toast("정산할 잔액이 없어요");
+  if (S.requests.some(r => r.status === "pending" && r.type === "payout" && r.buyerId === m.id)) return toast("이미 정산 요청 중이에요");
+  if (!(await ask(`잔액 ${won(amt)} 전액을 현금으로 정산 요청할까요?\n환전소가 현금을 주고 승인하면 잔액이 0이 돼요.`, { okText: "정산 요청" }))) return;
+  await S.be.add("requests", { type: "payout", status: "pending", buyerId: m.id, buyerName: m.name, sid: m.sid, amount: amt, createdAt: nowIso() });
+  toast("정산 요청 보냄 — 환전소로 가세요");
+};
+
+/* ============================================================
+   본부
+   ============================================================ */
+function ranking() {
+  const map = {};
+  S.txns.filter(t => t.type === "pay").forEach(t => { const r = map[t.sellerId] ||= { sellerId: t.sellerId, name: t.sellerName, disc: 0, n: 0, rev: 0 }; r.disc += t.discount; r.n++; r.rev += t.amount; });
+  return Object.values(map).sort((a, b) => b.disc - a.disc || b.n - a.n);
+}
+const adminPin = () => byId(S.settings, "admin")?.pin || RULE.ADMIN_PIN;
+$("#aUnlock").onclick = () => { if ($("#aPin").value !== adminPin()) return toast("PIN이 달라요"); S.adminOpen = true; $("#aLock").hidden = true; $("#aBody").hidden = false; $("#aPin").value = ""; renderAdmin(); };
+$("#aPin").onkeydown = e => { if (e.key === "Enter") $("#aUnlock").click(); };
+function renderAdmin() {
+  const reqs = S.requests.filter(r => r.status === "pending" && r.type !== "pay").sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  $("#aReqCount").textContent = reqs.length || "";
+  $("#aReqs").innerHTML = reqs.length ? reqs.map(r => `<div class="req" data-id="${r.id}"><div class="head"><b>${r.type === "topup" ? "💰 충전" : "💵 정산"} ${won(r.amount)}</b><span class="no">${esc(r.buyerName)} · ${esc(r.sid)}</span></div>
+    <div class="sub">${r.type === "topup" ? "현금 받았는지 확인 후 승인" : "현금 내준 후 승인 (잔액 0으로)"} · ${new Date(r.createdAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</div>
+    <div class="row" style="margin-top:8px"><button class="btn ok small appr">승인</button><button class="btn ghost small rej">거절</button></div></div>`).join("") : '<div class="muted">대기 중인 요청 없음</div>';
+  $("#aReqs").querySelectorAll(".req").forEach(box => {
+    const r = byId(S.requests, box.dataset.id);
+    box.querySelector(".rej").onclick = () => S.be.update("requests", r.id, { status: "cancel" });
+    box.querySelector(".appr").onclick = () => approve(r);
+  });
+  const users = S.users.slice().sort((a, b) => a.name.localeCompare(b.name, "ko"));
+  $("#aUserPick").innerHTML = users.map(u => `<option value="${u.id}">${esc(u.name)} (${esc(u.sid)}) · ${won(u.balance)}</option>`).join("");
+  const pays = S.txns.filter(t => t.type === "pay"), tops = S.txns.filter(t => t.type === "topup");
+  $("#aUsers").textContent = S.users.length; $("#aItems").textContent = S.items.length; $("#aSold").textContent = pays.length;
+  $("#aCharged").textContent = won(tops.reduce((a, t) => a + t.amount, 0)); $("#aRev").textContent = won(pays.reduce((a, t) => a + t.amount, 0));
+  $("#aFloat").textContent = won(S.users.reduce((a, u) => a + (u.balance || 0), 0));
+  const rk = ranking();
+  $("#aRank tbody").innerHTML = rk.length ? rk.slice(0, 10).map((r, i) => `<tr class="${i === 0 ? "rank1" : ""}"><td>${i + 1}</td><td>${esc(r.name)}</td><td class="r"><b>${won(r.disc)}</b></td><td class="r">${r.n}</td></tr>`).join("") : '<tr><td colspan="4" class="muted">아직 거래 없음</td></tr>';
+  const log = S.txns.slice().sort((a, b) => b.at.localeCompare(a.at)).slice(0, 30);
+  $("#aLog").innerHTML = log.length ? log.map(t => `<div class="ticker">${new Date(t.at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} · ${t.type === "pay" ? `🤝 ${esc(t.buyerName)} → ${esc(t.sellerName)} · ${esc(t.itemName)} <b>${won(t.amount)}</b>${t.discount ? ` <span class="badge green">−${won(t.discount)}</span>` : ""}` : t.type === "topup" ? `💰 ${esc(t.buyerName)} 충전 <b>${won(t.amount)}</b>` : `💵 ${esc(t.buyerName)} 정산 <b>${won(t.amount)}</b>`}</div>`).join("") : '<div class="muted">아직 거래 없음</div>';
+}
+async function approve(r) {
+  try {
+    await S.be.transact(async t => {
+      const req = await t.get("requests", r.id); if (!req || req.status !== "pending") throw new Error("이미 처리됨");
+      const u = await t.get("users", r.buyerId); if (!u) throw new Error("회원 없음");
+      if (r.type === "topup") t.update("users", u.id, { balance: (u.balance || 0) + r.amount });
+      else { if ((u.balance || 0) < r.amount) throw new Error("잔액이 요청액보다 적어요"); t.update("users", u.id, { balance: (u.balance || 0) - r.amount }); }
+      t.update("requests", req.id, { status: "done", doneAt: nowIso() });
+      t.set("txns", uid(), { type: r.type, buyerId: u.id, buyerName: u.name, amount: r.amount, at: nowIso() });
+    });
+    toast("승인 완료");
+  } catch (e) { toast(e.message || "실패"); }
+}
+$("#aTopupGo").onclick = async () => {
+  const id = $("#aUserPick").value, amt = Number($("#aAmt").value);
+  if (!id || !amt || amt % RULE.TOPUP_STEP !== 0) return toast("회원과 1,000원 단위 금액");
+  const u = byId(S.users, id);
+  if (!(await ask(`${u.name}(${u.sid})에게 ${won(amt)} 충전할까요?`, { okText: "충전" }))) return;
+  await approve({ id: await S.be.add("requests", { type: "topup", status: "pending", buyerId: u.id, buyerName: u.name, sid: u.sid, amount: amt, createdAt: nowIso(), byAdmin: true }), type: "topup", buyerId: u.id, amount: amt });
+  $("#aAmt").value = "";
+};
+function csv(name, rows) {
+  const s = "﻿" + rows.map(r => r.map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([s], { type: "text/csv;charset=utf-8" })); a.download = name; a.click();
+}
+$("#aCsvTx").onclick = () => csv("정페이_거래.csv", [["시각", "종류", "손님", "셀러", "물건번호", "물건", "정가", "금액", "할인"], ...S.txns.map(t => [t.at, t.type, t.buyerName, t.sellerName, t.itemNo, t.itemName, t.listPrice, t.amount, t.discount])]);
+$("#aCsvItems").onclick = () => csv("정페이_물건.csv", [["번호", "물건", "셀러", "정가", "상태", "판매가"], ...S.items.sort((a, b) => a.no - b.no).map(i => [i.no, i.name, i.sellerName, i.price, i.status, i.soldPrice])]);
+$("#aCsvUsers").onclick = () => csv("정페이_회원.csv", [["이름", "전화번호", "셀러", "잔액"], ...S.users.map(u => [u.name, u.sid, u.isSeller ? "Y" : "", u.balance])]);
+$("#pinSave").onclick = async () => {
+  const a = $("#pinNew").value.trim(), b = $("#pinNew2").value.trim();
+  if (!/^\d{4,8}$/.test(a)) return toast("PIN은 4~8자리 숫자");
+  if (a !== b) return toast("두 번 입력한 PIN이 달라요");
+  if (!(await ask(`운영진 PIN을 ${a} 로 바꿀까요?\n환전소 앱을 쓰는 모든 기기에 바로 적용돼요.`, { okText: "변경" }))) return;
+  if (byId(S.settings, "admin")) await S.be.update("settings", "admin", { pin: a, updatedAt: nowIso() });
+  else await S.be.add("settings", { id: "admin", pin: a, updatedAt: nowIso() });
+  $("#pinNew").value = $("#pinNew2").value = ""; toast("PIN을 바꿨어요");
+};
+$("#fbSave").onclick = () => {
+  let txt = $("#fbCfg").value.trim();
+  try {
+    const m = /\{[\s\S]*\}/.exec(txt); if (!m) throw 0;
+    const cfg = Function("return (" + m[0] + ")")();
+    if (!cfg.projectId || !cfg.apiKey) throw 0;
+    LS.set("jp_fbcfg", cfg); toast("저장했어요. 새로고침합니다"); setTimeout(() => location.reload(), 800);
+  } catch { toast("firebaseConfig = { ... } 모양이 아니에요"); }
+};
+$("#fbOff").onclick = () => { LS.del("jp_fbcfg"); location.reload(); };
+$("#aSeed").onclick = async () => {
+  const sellers = [["김수민", "010-1111-2222"], ["권병국", "010-3333-4444"]];
+  const goods = [["손때 묻은 전공책", 5000], ["자취방 전기포트", 8000], ["학과 굿즈 머그컵", 3000], ["무선 마우스", 12000]];
+  for (const [name, sid] of sellers) {
+    let u = S.users.find(x => x.sid === sid);
+    if (!u) { u = { id: uid(), name, sid, balance: 0, isSeller: true, createdAt: nowIso() }; await S.be.add("users", u); await becomeSeller(u); }
+    for (const [g, p] of goods.splice(0, 2)) {
+      const id = uid();
+      await S.be.transact(async t => { const meta = await t.get("meta", "counters"); const no = (meta?.itemNo || 0) + 1; t.update("meta", "counters", { itemNo: no }); t.set("items", id, { id, no, sellerId: u.id, sellerName: u.name, name: g, price: p, photo: "", status: "판매중", createdAt: nowIso() }); });
+    }
+  }
+  toast("예시 셀러 2명·물건 4개 추가");
+};
+$("#aWipe").onclick = async () => { if (await ask("이 기기의 데모 데이터를 모두 지울까요?", { okText: "초기화" })) { S.be.wipe(); LS.del("jp_me_buyer"); LS.del("jp_me_seller"); location.reload(); } };
+
+/* ---- 시작: URL에 ?item=번호 가 있으면 자동으로 열기 ---- */
+boot().then(() => {
+  const no = parseQr(location.search) || parseQr(location.hash);
+  window.addEventListener("hashchange", () => { const n = parseQr(location.hash); if (n && S.me && APP !== "seller" && APP !== "admin") { go("wallet"); openShop(n); } });
+  if (no) { const tryOpen = (n = 0) => { if (S.me && S.users.length) { go("wallet"); openShop(no); } else if (n < 20) setTimeout(() => tryOpen(n + 1), 300); }; tryOpen(); }
+});
+window.__jp = S;
+</script>
+</body>
+</html>
