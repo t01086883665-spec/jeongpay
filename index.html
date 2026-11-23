@@ -118,6 +118,10 @@
     <h2>이름·전화번호로 시작</h2>
     <label>이름</label><input type="text" id="gName" maxlength="20" placeholder="홍길동" autocomplete="off">
     <label>전화번호 <span class="hint">같은 번호면 어느 폰에서든 같은 지갑 · 환전·정산 확인용</span></label><input type="tel" id="gSid" inputmode="tel" maxlength="13" placeholder="010-1234-5678" autocomplete="tel">
+    <div id="gShopWrap" hidden>
+      <label>가게(팀) 이름 <span class="hint">팀이면 팀 이름 · 개인이면 비워 두면 내 이름으로 · 번호(001…)는 자동으로 붙어요</span></label>
+      <input type="text" id="gShop" maxlength="20" placeholder="예) 미영상회 / 3학년 2조" autocomplete="off">
+    </div>
     <div style="height:12px"></div>
     <button class="btn" id="gGo">시작하기</button>
     <p class="muted center" style="font-size:12px;margin:10px 0 0">잔액은 환전소에서 현금 충전 후 운영진 승인으로 들어옵니다.</p>
@@ -167,7 +171,7 @@
   <div id="sReqs"></div>
 
   <div class="card">
-    <h2>내 가게 QR <span class="no" id="sMyNo"></span></h2>
+    <h2 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span id="sMyShop">내 가게</span> <span class="no" id="sMyNo"></span><button class="btn ghost small" id="sRename" style="margin-left:auto">이름 변경</button></h2>
     <div class="qrbox"><canvas id="sMyQr"></canvas></div>
     <p class="muted center" style="font-size:13px;margin:4px 0 0">이 QR 하나를 가게 앞에 붙여 두세요. 손님이 찍으면 내 물건 목록이 뜨고, 고르면 결제 요청이 옵니다. (QR 못 찍으면 셀러 번호 입력)</p>
   </div>
@@ -1588,6 +1592,8 @@ const $ = s => document.querySelector(s);
 const won = n => (Number(n) || 0).toLocaleString("ko-KR") + "원";
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
 const pad3 = n => String(n).padStart(3, "0");
+const shopLabel = u => u ? `${pad3(u.sellerNo || 0)} ${u.shopName || u.name}` : "";
+const shopOf = (id, fallback) => { const u = S.users.find(x => x.id === id); return u?.sellerNo ? shopLabel(u) : (fallback || ""); };
 const normPhone = v => { const d = String(v || "").replace(/\D/g, ""); return d.length === 11 ? d.replace(/(\d{3})(\d{4})(\d{4})/, "$1-$2-$3") : d.length === 10 ? d.replace(/(\d{3})(\d{3})(\d{4})/, "$1-$2-$3") : d; };
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 function toast(m) { const t = $("#toast"); t.textContent = m; t.style.display = "block"; clearTimeout(toast._t); toast._t = setTimeout(() => t.style.display = "none", 2600); }
@@ -1688,6 +1694,7 @@ const nowIso = () => new Date().toISOString();
 function setupApp() {
   const t = { all: ["情 정페이", "정터(情터) 결제 · 흥정 기록 앱 (통합 데모)"], buyer: ["情 정페이", "정터(情터) 손님용 · 잔액 확인 · QR로 사기"], seller: ["情 정페이 셀러", "정터(情터) 셀러용 · 물건 등록 · 흥정 확정"], admin: ["情 정페이 환전소", ""] }[APP] || ["情 정페이", ""];
   $("#appTitle").textContent = t[0]; $("#gateSub").textContent = t[1]; document.title = t[0];
+  $("#gShopWrap").hidden = APP !== "seller";
   if (APP === "all") { $("#tabAdmin").hidden = location.hash !== "#admin"; window.addEventListener("hashchange", () => { if (location.hash === "#admin") { $("#tabAdmin").hidden = false; if (S.me) go("admin"); } }); }
   else document.querySelectorAll("nav.tabs button[data-go]").forEach(b => b.hidden = b.dataset.go !== ({ buyer: "wallet", seller: "seller", admin: "admin" })[APP]);
   if (APP === "admin") { $("#tabs").hidden = false; $("#tabLogout").hidden = true; go("admin"); }
@@ -1717,22 +1724,26 @@ $("#gGo").onclick = async () => {
   if (!name || !sid) return toast("이름과 전화번호를 입력하세요");
   if (!/^01\d{8,9}$/.test(sid.replace(/-/g, ""))) return toast("전화번호를 다시 확인해 주세요 (010-1234-5678)");
   const exist = S.users.find(u => u.sid === sid);
+  const shopIn = APP === "seller" ? $("#gShop").value.trim() : "";
+  const shop = shopIn || (exist?.shopName) || name;
   if (exist && exist.name !== name) return toast(`이 번호는 "${exist.name}"님으로 가입돼 있어요. 이름을 확인해 주세요`);
-  if (!(await ask(`이 정보가 맞나요?\n\n이름: ${name}\n전화번호: ${sid}${exist ? "\n\n(기존 지갑으로 들어갑니다)" : ""}`, { okText: exist ? "들어가기" : "가입하기" }))) return;
+  if (!(await ask(`이 정보가 맞나요?\n\n이름: ${name}\n전화번호: ${sid}${APP === "seller" ? `\n가게(팀) 이름: ${shop}` : ""}${exist ? "\n\n(기존 지갑으로 들어갑니다)" : ""}`, { okText: exist ? "들어가기" : "가입하기" }))) return;
+  S.pendingShop = APP === "seller" ? shop : null;
+  if (exist && APP === "seller" && shopIn && shopIn !== exist.shopName) await S.be.update("users", exist.id, { shopName: shopIn });
   if (exist) { enter(exist); return toast(`${exist.name}님, 다시 오셨네요`); }
   const u = { id: uid(), name, sid, balance: 0, isSeller: false, createdAt: nowIso() };
   await S.be.add("users", u); enter(u);
 };
-async function becomeSeller(u) {
-  if (u.isSeller && u.sellerNo) return;
+async function becomeSeller(u, shop) {
+  if (u.isSeller && u.sellerNo) { if (shop && !u.shopName) await S.be.update("users", u.id, { shopName: shop }); return; }
   await S.be.transact(async t => {
     const meta = await t.get("meta", "counters"); const cur = await t.get("users", u.id);
     if (cur?.sellerNo) return;
     const no = (meta?.sellerNo || 0) + 1;
-    t.update("meta", "counters", { sellerNo: no }); t.update("users", u.id, { isSeller: true, sellerNo: no });
+    t.update("meta", "counters", { sellerNo: no }); t.update("users", u.id, { isSeller: true, sellerNo: no, shopName: shop || cur?.shopName || u.name });
   });
 }
-function enter(u) { S.me = u; if (APP === "all" && location.hash === "#admin") { $("#tabAdmin").hidden = false; S.screen = "admin"; } if (APP === "seller") { S.screen = "seller"; becomeSeller(u).catch(e => toast("셀러 등록 실패: " + e.message)); } LS.set("jp_me_" + APP, { id: u.id, name: u.name, sid: u.sid }); $("#tabs").hidden = false; go(S.screen === "gate" ? "wallet" : S.screen); render(); }
+function enter(u) { S.me = u; if (APP === "all" && location.hash === "#admin") { $("#tabAdmin").hidden = false; S.screen = "admin"; } if (APP === "seller") { S.screen = "seller"; becomeSeller(u, S.pendingShop).catch(e => toast("셀러 등록 실패: " + e.message)); S.pendingShop = null; } LS.set("jp_me_" + APP, { id: u.id, name: u.name, sid: u.sid }); $("#tabs").hidden = false; go(S.screen === "gate" ? "wallet" : S.screen); render(); }
 $("#tabLogout").onclick = async () => { if (await ask("이 기기에서 나갈까요? 잔액은 같은 전화번호로 다시 들어오면 그대로예요.", { okText: "나가기" })) { LS.del("jp_me_" + APP); S.me = null; $("#gName").value = ""; $("#gSid").value = ""; $("#buyCard").hidden = true; S.buyItem = null; $("#tabs").hidden = true; go("gate"); render(); } };
 
 function forceLogout() {
@@ -1773,7 +1784,7 @@ function renderWallet(m) {
   // 충전 요청 버튼: 대기 중이면 중복 방지
   $("#wTopup").disabled = topups > 0;
   const buys = S.txns.filter(t => t.type === "pay" && t.buyerId === m.id).sort((a, b) => b.at.localeCompare(a.at));
-  $("#wBuys").innerHTML = buys.length ? buys.map(t => `<div class="item"><div class="ph">🧾</div><div class="meta"><b>${esc(t.itemName)}</b><small>${esc(t.sellerName)} · ${t.discount > 0 ? `흥정으로 ${won(t.discount)} 아낌` : "정가 구매"} · ${new Date(t.at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</small></div><div class="price">${won(t.amount)}</div></div>`).join("") : '<div class="muted">아직 없음</div>';
+  $("#wBuys").innerHTML = buys.length ? buys.map(t => `<div class="item"><div class="ph">🧾</div><div class="meta"><b>${esc(t.itemName)}</b><small>${esc(shopOf(t.sellerId, t.sellerName))} · ${t.discount > 0 ? `흥정으로 ${won(t.discount)} 아낌` : "정가 구매"} · ${new Date(t.at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</small></div><div class="price">${won(t.amount)}</div></div>`).join("") : '<div class="muted">아직 없음</div>';
   // 충전 요청 대기(취소 가능) + 승인된 충전(취소 요청 가능)
   const myTopReqs = pend.filter(r => r.type === "topup");
   const refundPend = S.requests.filter(r => r.status === "pending" && r.type === "refund" && r.buyerId === m.id);
@@ -1824,7 +1835,7 @@ function renderBuy(item) {
   const sold = item.status !== "판매중";
   c.innerHTML = `
     <div class="item" style="border:0;padding:0">${item.photo ? `<img src="${item.photo}" alt="">` : `<div class="ph">🎁</div>`}
-      <div class="meta"><span class="no">No.${pad3(item.no)}</span><b style="font-size:20px">${esc(item.name)}</b><small>셀러 ${esc(seller?.name || item.sellerName)}</small></div>
+      <div class="meta"><span class="no">No.${pad3(item.no)}</span><b style="font-size:20px">${esc(item.name)}</b><small>${esc(shopOf(item.sellerId, item.sellerName))}</small></div>
       <div class="price" style="font-size:28px">${won(item.price)}</div></div>
     <p class="muted" style="font-size:13px;margin:10px 0">정가(情價)는 이미 정으로 할인된 가격이에요. 더 깎고 싶으면 셀러에게 말로 흥정 → 셀러가 확정가를 입력합니다.</p>
     ${sold ? `<span class="badge gray">이미 판매된 물건</span>` : m.balance < item.price ? `<span class="badge">잔액 부족 — 흥정으로 깎이면 결제될 수 있어요</span>` : ""}
@@ -1846,7 +1857,7 @@ function renderShop(seller) {
   S.buyItem = { shop: seller.id };
   const items = S.items.filter(i => i.sellerId === seller.id).sort((a, b) => a.no - b.no);
   const c = $("#buyCard"); c.hidden = false;
-  c.innerHTML = `<h3 style="margin-top:0">🏪 ${esc(seller.name)}님의 가게 <span class="no">No.${pad3(seller.sellerNo)}</span></h3>
+  c.innerHTML = `<h3 style="margin-top:0">🏪 <span class="no" style="font-size:18px">${pad3(seller.sellerNo)}</span> ${esc(seller.shopName || seller.name)}</h3>
     <p class="muted" style="font-size:13px;margin:0 0 8px">사고 싶은 물건을 고르세요. 정가(情價)는 이미 정으로 할인된 가격 — 더 깎고 싶으면 셀러에게 말로 흥정하세요.</p>
     <div class="list">${items.length ? items.map(i => `<div class="item ${i.status !== "판매중" ? "sold" : ""}" ${i.status === "판매중" ? `data-pick="${i.id}" style="cursor:pointer"` : ""}>${i.photo ? `<img src="${i.photo}" alt="">` : `<div class="ph">🎁</div>`}<div class="meta"><span class="no">No.${pad3(i.no)}</span><b>${esc(i.name)}</b><small>${i.status === "판매중" ? "탭해서 고르기" : i.status}</small></div><div class="price">${won(i.price)}</div></div>`).join("") : '<div class="muted">아직 등록된 물건이 없어요</div>'}</div>
     <div class="row" style="margin-top:10px"><button class="btn ghost" id="buyClose">닫기</button></div>`;
@@ -1863,7 +1874,7 @@ $("#wTopup").onclick = async () => {
   await S.be.add("requests", { type: "topup", status: "pending", buyerId: m.id, buyerName: m.name, sid: m.sid, amount: amt, createdAt: nowIso() });
   toast("충전 요청 보냄 — 운영진 승인을 기다리세요");
 };
-$("#wSellerOn").onclick = async () => { if (await ask("셀러로 등록할까요? 물건 등록·QR·흥정 확정 탭이 열려요.", { okText: "셀러 등록" })) { await becomeSeller(me()); toast("셀러 탭이 열렸어요"); } };
+$("#wSellerOn").onclick = async () => { const v = await ask("가게(팀) 이름을 입력하세요\n개인이면 비워 두면 내 이름으로 · 번호는 자동", { input: "", okText: "셀러 등록", text: true }); if (v == null) return; await becomeSeller(me(), v.trim() || me().name); toast("셀러 탭이 열렸어요"); };
 
 /* ---- QR 스캔: 앱 안(BarcodeDetector) → 안 되면 기본 카메라 앱 안내 ---- */
 let scanStream = null, scanTimer = null;
@@ -1925,7 +1936,7 @@ $("#iSubmit").onclick = async () => {
     const no = await S.be.transact(async t => {
       const meta = await t.get("meta", "counters"); const no = (meta?.itemNo || 0) + 1;
       t.update("meta", "counters", { itemNo: no });
-      t.set("items", id, { id, no, sellerId: m.id, sellerName: m.name, name, price, photo: photoData, status: "판매중", createdAt: nowIso() });
+      t.set("items", id, { id, no, sellerId: m.id, sellerName: shopLabel(m) || m.name, name, price, photo: photoData, status: "판매중", createdAt: nowIso() });
       return no;
     });
     $("#sDoneNo").textContent = pad3(no); $("#sDoneName").textContent = `${name} · ${won(price)}`;
@@ -1945,6 +1956,7 @@ function renderSeller(m) {
   $("#sStatusBox").className = "sellerbox " + (myRank === 1 ? "open" : "");
   $("#sStatusText").textContent = myRank ? `🏆 흥정왕 랭킹 ${myRank}위 (할인 합계 ${won(disc)})` : "아직 흥정 기록 없음 — 깎아주면 랭킹에 올라가요";
   $("#sItems").innerHTML = mine.length ? mine.map(i => `<div class="item ${i.status !== "판매중" ? "sold" : ""}">${i.photo ? `<img src="${i.photo}" alt="">` : `<div class="ph">🎁</div>`}<div class="meta"><span class="no">No.${pad3(i.no)}</span><b>${esc(i.name)}</b><small>${i.status}</small></div><div class="price">${won(i.price)}</div></div>`).join("") : '<div class="muted">아직 없음</div>';
+  $("#sMyShop").textContent = m.shopName || m.name;
   if (m.sellerNo && renderSeller._qrNo !== m.sellerNo) { renderSeller._qrNo = m.sellerNo; $("#sMyNo").textContent = "셀러 No." + pad3(m.sellerNo); try { QRCode.toCanvas($("#sMyQr"), itemUrl(m.sellerNo), { width: 200, margin: 1 }); } catch (e) { console.error(e); } }
   // 결제 요청
   const reqs = S.requests.filter(r => r.status === "pending" && r.type === "pay" && r.sellerId === m.id).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
@@ -1983,11 +1995,15 @@ async function confirmPay(r, final) {
       t.update("users", seller.id, { balance: (seller.balance || 0) + final, sales: (seller.sales || 0) + final });
       t.update("items", item.id, { status: "판매됨", soldPrice: final, soldAt: nowIso(), buyerId: buyer.id });
       t.update("requests", req.id, { status: "done", finalPrice: final, doneAt: nowIso() });
-      t.set("txns", uid(), { type: "pay", buyerId: buyer.id, buyerName: buyer.name, sellerId: seller.id, sellerName: seller.name, itemId: item.id, itemNo: item.no, itemName: item.name, listPrice: r.listPrice, amount: final, discount: r.listPrice - final, at: nowIso() });
+      t.set("txns", uid(), { type: "pay", buyerId: buyer.id, buyerName: buyer.name, sellerId: seller.id, sellerName: shopLabel(seller) || seller.name, itemId: item.id, itemNo: item.no, itemName: item.name, listPrice: r.listPrice, amount: final, discount: r.listPrice - final, at: nowIso() });
     });
     toast(`확정! ${won(final)} 받았어요`);
   } catch (e) { toast(e.message || "실패"); }
 }
+$("#sRename").onclick = async () => {
+  const m = me(); const v = await ask(`가게(팀) 이름 변경\n지금: ${m.shopName || m.name}`, { input: m.shopName || m.name, okText: "변경", text: true });
+  if (v == null || !v.trim()) return; await S.be.update("users", m.id, { shopName: v.trim().slice(0, 20) }); toast("가게 이름을 바꿨어요");
+};
 $("#sPayout").onclick = async () => {
   const m = me(); const amt = m.balance || 0;
   if (amt <= 0) return toast("정산할 잔액이 없어요");
@@ -2002,7 +2018,7 @@ $("#sPayout").onclick = async () => {
    ============================================================ */
 function ranking() {
   const map = {};
-  S.txns.filter(t => t.type === "pay").forEach(t => { const r = map[t.sellerId] ||= { sellerId: t.sellerId, name: t.sellerName, disc: 0, n: 0, rev: 0 }; r.disc += t.discount; r.n++; r.rev += t.amount; });
+  S.txns.filter(t => t.type === "pay").forEach(t => { const r = map[t.sellerId] ||= { sellerId: t.sellerId, name: shopOf(t.sellerId, t.sellerName), disc: 0, n: 0, rev: 0 }; r.disc += t.discount; r.n++; r.rev += t.amount; });
   return Object.values(map).sort((a, b) => b.disc - a.disc || b.n - a.n);
 }
 const adminPin = () => byId(S.settings, "admin")?.pin || RULE.ADMIN_PIN;
@@ -2031,7 +2047,7 @@ function renderAdmin() {
     toast("손님에게 취소 요청을 보냈어요");
   });
   const users = S.users.slice().sort((a, b) => a.name.localeCompare(b.name, "ko"));
-  $("#aUserPick").innerHTML = users.map(u => `<option value="${u.id}">${esc(u.name)} (${esc(u.sid)}) · ${won(u.balance)}</option>`).join("");
+  $("#aUserPick").innerHTML = users.map(u => `<option value="${u.id}">${u.sellerNo ? "[" + esc(shopLabel(u)) + "] " : ""}${esc(u.name)} (${esc(u.sid)}) · ${won(u.balance)}</option>`).join("");
   const pays = S.txns.filter(t => t.type === "pay"), tops = S.txns.filter(t => t.type === "topup"), refs = S.txns.filter(t => t.type === "refund");
   $("#aUsers").textContent = S.users.length; $("#aItems").textContent = S.items.length; $("#aSold").textContent = pays.length;
   $("#aCharged").textContent = won(tops.reduce((a, t) => a + t.amount, 0) - refs.reduce((a, t) => a + t.amount, 0)); $("#aRev").textContent = won(pays.reduce((a, t) => a + t.amount, 0));
@@ -2039,7 +2055,7 @@ function renderAdmin() {
   const rk = ranking();
   $("#aRank tbody").innerHTML = rk.length ? rk.slice(0, 10).map((r, i) => `<tr class="${i === 0 ? "rank1" : ""}"><td>${i + 1}</td><td>${esc(r.name)}</td><td class="r"><b>${won(r.disc)}</b></td><td class="r">${r.n}</td></tr>`).join("") : '<tr><td colspan="4" class="muted">아직 거래 없음</td></tr>';
   const log = S.txns.slice().sort((a, b) => b.at.localeCompare(a.at)).slice(0, 30);
-  $("#aLog").innerHTML = log.length ? log.map(t => `<div class="ticker">${new Date(t.at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} · ${t.type === "pay" ? `🤝 ${esc(t.buyerName)} → ${esc(t.sellerName)} · ${esc(t.itemName)} <b>${won(t.amount)}</b>${t.discount ? ` <span class="badge green">−${won(t.discount)}</span>` : ""}` : t.type === "topup" ? `💰 ${esc(t.buyerName)} 충전 <b>${won(t.amount)}</b>` : t.type === "refund" ? `↩️ ${esc(t.buyerName)} 충전 취소 <b>${won(t.amount)}</b>` : `💵 ${esc(t.buyerName)} 정산 <b>${won(t.amount)}</b>`}</div>`).join("") : '<div class="muted">아직 거래 없음</div>';
+  $("#aLog").innerHTML = log.length ? log.map(t => `<div class="ticker">${new Date(t.at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} · ${t.type === "pay" ? `🤝 ${esc(t.buyerName)} → ${esc(shopOf(t.sellerId, t.sellerName))} · ${esc(t.itemName)} <b>${won(t.amount)}</b>${t.discount ? ` <span class="badge green">−${won(t.discount)}</span>` : ""}` : t.type === "topup" ? `💰 ${esc(t.buyerName)} 충전 <b>${won(t.amount)}</b>` : t.type === "refund" ? `↩️ ${esc(t.buyerName)} 충전 취소 <b>${won(t.amount)}</b>` : `💵 ${esc(t.buyerName)} 정산 <b>${won(t.amount)}</b>`}</div>`).join("") : '<div class="muted">아직 거래 없음</div>';
 }
 async function approve(r) {
   try {
@@ -2067,9 +2083,9 @@ function csv(name, rows) {
   const s = "﻿" + rows.map(r => r.map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([s], { type: "text/csv;charset=utf-8" })); a.download = name; a.click();
 }
-$("#aCsvTx").onclick = () => csv("정페이_거래.csv", [["시각", "종류", "손님", "셀러", "물건번호", "물건", "정가", "금액", "할인"], ...S.txns.map(t => [t.at, t.type, t.buyerName, t.sellerName, t.itemNo, t.itemName, t.listPrice, t.amount, t.discount])]);
-$("#aCsvItems").onclick = () => csv("정페이_물건.csv", [["번호", "물건", "셀러", "정가", "상태", "판매가"], ...S.items.sort((a, b) => a.no - b.no).map(i => [i.no, i.name, i.sellerName, i.price, i.status, i.soldPrice])]);
-$("#aCsvUsers").onclick = () => csv("정페이_회원.csv", [["이름", "전화번호", "셀러", "잔액"], ...S.users.map(u => [u.name, u.sid, u.isSeller ? "Y" : "", u.balance])]);
+$("#aCsvTx").onclick = () => csv("정페이_거래.csv", [["시각", "종류", "손님", "셀러", "물건번호", "물건", "정가", "금액", "할인"], ...S.txns.map(t => [t.at, t.type, t.buyerName, shopOf(t.sellerId, t.sellerName), t.itemNo, t.itemName, t.listPrice, t.amount, t.discount])]);
+$("#aCsvItems").onclick = () => csv("정페이_물건.csv", [["번호", "물건", "셀러", "정가", "상태", "판매가"], ...S.items.sort((a, b) => a.no - b.no).map(i => [i.no, i.name, shopOf(i.sellerId, i.sellerName), i.price, i.status, i.soldPrice])]);
+$("#aCsvUsers").onclick = () => csv("정페이_회원.csv", [["이름", "전화번호", "셀러번호", "가게(팀)", "잔액"], ...S.users.map(u => [u.name, u.sid, u.sellerNo ? pad3(u.sellerNo) : "", u.sellerNo ? (u.shopName || u.name) : "", u.balance])]);
 $("#pinSave").onclick = async () => {
   const a = $("#pinNew").value.trim(), b = $("#pinNew2").value.trim();
   if (!/^\d{4,8}$/.test(a)) return toast("PIN은 4~8자리 숫자");
@@ -2090,11 +2106,11 @@ $("#fbSave").onclick = () => {
 };
 $("#fbOff").onclick = () => { LS.del("jp_fbcfg"); location.reload(); };
 $("#aSeed").onclick = async () => {
-  const sellers = [["김수민", "010-1111-2222"], ["권병국", "010-3333-4444"]];
+  const sellers = [["김수민", "010-1111-2222", "미영상회"], ["권병국", "010-3333-4444", "권병국"]];
   const goods = [["손때 묻은 전공책", 5000], ["자취방 전기포트", 8000], ["학과 굿즈 머그컵", 3000], ["무선 마우스", 12000]];
-  for (const [name, sid] of sellers) {
+  for (const [name, sid, shop] of sellers) {
     let u = S.users.find(x => x.sid === sid);
-    if (!u) { u = { id: uid(), name, sid, balance: 0, isSeller: true, createdAt: nowIso() }; await S.be.add("users", u); await becomeSeller(u); }
+    if (!u) { u = { id: uid(), name, sid, balance: 0, isSeller: true, createdAt: nowIso() }; await S.be.add("users", u); await becomeSeller(u, shop); }
     for (const [g, p] of goods.splice(0, 2)) {
       const id = uid();
       await S.be.transact(async t => { const meta = await t.get("meta", "counters"); const no = (meta?.itemNo || 0) + 1; t.update("meta", "counters", { itemNo: no }); t.set("items", id, { id, no, sellerId: u.id, sellerName: u.name, name: g, price: p, photo: "", status: "판매중", createdAt: nowIso() }); });
