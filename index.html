@@ -1573,9 +1573,9 @@ window.QRCode={toCanvas:function(canvas,text,opt){opt=opt||{};var t=1,qr;for(;t<
    ============================================================ */
 const RULE = { MAX_PRICE: 50000, UNIT: 100, MAX_ITEMS: 20, ADMIN_PIN: "1215", TOPUP_STEP: 1000 };
 // ▼ 운영 시 여기에 Firebase 설정을 넣으면 모든 폰이 자동으로 서버 모드로 켜집니다.
-const APP = "buyer"; // buyer | seller | admin  (빌드 시 치환)
+const APP = (() => { const a = "auto"; if (a !== "auto") return a; const q = new URLSearchParams(location.search).get("app"); return ["seller", "admin", "all"].includes(q) ? q : "buyer"; })(); // buyer | seller | admin | auto(?app=)
 const BUYER_URL = ""; // 셀러 QR이 가리킬 손님 앱 주소 (빈 값이면 현재 주소에서 추정)
-const FIREBASE_CONFIG = null; // 예: { apiKey:"...", authDomain:"...", projectId:"...", appId:"..." }
+const FIREBASE_CONFIG = { apiKey: "AIzaSyBiXYRHQySCVcXyPUzTErfu_F560aga-sM", authDomain: "jeongpay-4878a.firebaseapp.com", projectId: "jeongpay-4878a", storageBucket: "jeongpay-4878a.firebasestorage.app", messagingSenderId: "538482744184", appId: "1:538482744184:web:651f07e2ae467ce425068d" }; // 예: { apiKey:"...", authDomain:"...", projectId:"...", appId:"..." }
 
 const $ = s => document.querySelector(s);
 const won = n => (Number(n) || 0).toLocaleString("ko-KR") + "원";
@@ -1831,7 +1831,7 @@ $("#wScan").onclick = async () => {
 function stopScan() { clearInterval(scanTimer); scanStream?.getTracks().forEach(t => t.stop()); scanStream = null; $("#scanBox").hidden = true; }
 $("#scanStop").onclick = stopScan;
 function parseQr(s) { const m = /(?:[?&#](?:seller|item)[=-]|^JP:)(\d+)/.exec(s || ""); return m ? Number(m[1]) : null; }
-function itemUrl(no) { const base = BUYER_URL && !BUYER_URL.startsWith("__") ? BUYER_URL : location.href.replace(/seller\.html/, "index.html"); const u = new URL(base); u.search = ""; u.hash = "seller-" + no; return u.toString(); }
+function itemUrl(no) { const base = BUYER_URL && !BUYER_URL.startsWith("__") ? BUYER_URL : location.origin + location.pathname.replace(/seller\.html$/, "index.html"); const u = new URL(base); u.search = ""; u.hash = "seller-" + no; return u.toString(); }
 
 /* ============================================================
    셀러
