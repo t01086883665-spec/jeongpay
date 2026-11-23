@@ -288,7 +288,7 @@
       <h3>데모 도구</h3>
       <div class="row">
         <button class="btn ghost small" id="aSeed">예시 셀러·물건 넣기</button>
-        <button class="btn ghost small danger" id="aWipe">이 기기 데모 데이터 초기화</button>
+        <button class="btn ghost small danger" id="aWipe">전체 데이터 초기화</button>
       </div>
     </div>
   </div>
@@ -1591,9 +1591,10 @@ const pad3 = n => String(n).padStart(3, "0");
 const normPhone = v => { const d = String(v || "").replace(/\D/g, ""); return d.length === 11 ? d.replace(/(\d{3})(\d{4})(\d{4})/, "$1-$2-$3") : d.length === 10 ? d.replace(/(\d{3})(\d{3})(\d{4})/, "$1-$2-$3") : d; };
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 function toast(m) { const t = $("#toast"); t.textContent = m; t.style.display = "block"; clearTimeout(toast._t); toast._t = setTimeout(() => t.style.display = "none", 2600); }
-function ask(msg, { input = null, okText = "확인" } = {}) {
+function ask(msg, { input = null, okText = "확인", text = false } = {}) {
   return new Promise(res => {
     const d = $("#ask"), inp = $("#askInput");
+    inp.type = text ? "text" : "number"; inp.inputMode = text ? "text" : "numeric";
     $("#askMsg").textContent = msg; inp.hidden = input == null; inp.value = input ?? ""; $("#askOk").textContent = okText;
     inp.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); d.close("ok"); } };
     d.onclose = () => res(d.returnValue === "ok" ? (input == null ? true : inp.value) : (input == null ? false : null));
@@ -1663,7 +1664,15 @@ async function makeFirebaseBackend(cfg) {
         return fn(t);
       });
     },
-    wipe() { toast("서버 데이터는 Firebase 콘솔에서 지우세요"); },
+    async wipeAll() {
+      for (const c of [...COLLS, "meta"]) {
+        const snap = await F.getDocs(col(c));
+        let batch = F.writeBatch(db), n = 0;
+        for (const d of snap.docs) { batch.delete(d.ref); if (++n === 400) { await batch.commit(); batch = F.writeBatch(db); n = 0; } }
+        if (n) await batch.commit();
+      }
+    },
+    wipe() { return this.wipeAll(); },
   };
 }
 
@@ -1696,7 +1705,7 @@ async function boot() {
   $("#modeBadge").classList.toggle("live", live);
   $("#fbStatus").textContent = live ? "✅ Firebase 연결됨 — 모든 폰이 같은 데이터를 봅니다." : "⚠️ 데모 모드 — 이 기기(브라우저)에만 저장됩니다. 여러 폰에서 쓰려면 Firebase 설정을 넣으세요.";
   if (cfg && !FIREBASE_CONFIG) $("#fbCfg").value = JSON.stringify(cfg, null, 2);
-  COLLS.forEach(c => S.be.watch(c, rows => { S[c] = rows; render(); }));
+  COLLS.forEach(c => S.be.watch(c, rows => { S[c] = rows; if (c === "users") _usersLoaded = true; render(); }));
   if (APP !== "admin") { const saved = LS.get("jp_me_" + APP, null); if (saved) enter(saved); }
 }
 
@@ -1726,6 +1735,10 @@ async function becomeSeller(u) {
 function enter(u) { S.me = u; if (APP === "all" && location.hash === "#admin") { $("#tabAdmin").hidden = false; S.screen = "admin"; } if (APP === "seller") { S.screen = "seller"; becomeSeller(u).catch(e => toast("셀러 등록 실패: " + e.message)); } LS.set("jp_me_" + APP, { id: u.id, name: u.name, sid: u.sid }); $("#tabs").hidden = false; go(S.screen === "gate" ? "wallet" : S.screen); render(); }
 $("#tabLogout").onclick = async () => { if (await ask("이 기기에서 나갈까요? 잔액은 같은 전화번호로 다시 들어오면 그대로예요.", { okText: "나가기" })) { LS.del("jp_me_" + APP); S.me = null; $("#gName").value = ""; $("#gSid").value = ""; $("#buyCard").hidden = true; S.buyItem = null; $("#tabs").hidden = true; go("gate"); render(); } };
 
+function forceLogout() {
+  LS.del("jp_me_" + APP); S.me = null; S.buyItem = null; $("#buyCard").hidden = true; $("#gName").value = ""; $("#gSid").value = "";
+  if (APP !== "admin") { $("#tabs").hidden = true; go("gate"); toast("데이터가 초기화돼서 다시 가입해 주세요"); }
+}
 function go(name) {
   S.screen = name;
   document.querySelectorAll("nav.tabs button[data-go]").forEach(b => b.classList.toggle("on", b.dataset.go === name));
@@ -1738,7 +1751,10 @@ document.querySelectorAll("nav.tabs button[data-go]").forEach(b => b.onclick = (
 /* ============================================================
    렌더
    ============================================================ */
+let _usersLoaded = false;
 function render() {
+  if (S.me && S.users.length === 0 && _usersLoaded) { forceLogout(); return; }
+  if (S.me && _usersLoaded && S.users.length && !byId(S.users, S.me.id)) { forceLogout(); return; }
   const m = me();
   $("#whoBox").innerHTML = m ? `<b>${esc(m.name)}</b><br>${esc(m.sid)}` : "";
   if (APP === "admin") { if (S.adminOpen) renderAdmin(); return; }
@@ -2086,7 +2102,14 @@ $("#aSeed").onclick = async () => {
   }
   toast("예시 셀러 2명·물건 4개 추가");
 };
-$("#aWipe").onclick = async () => { if (await ask("이 기기의 데모 데이터를 모두 지울까요?", { okText: "초기화" })) { S.be.wipe(); LS.del("jp_me_buyer"); LS.del("jp_me_seller"); location.reload(); } };
+$("#aWipe").onclick = async () => {
+  const live = S.be.name === "firebase";
+  if (!(await ask(`${live ? "서버의" : "이 기기의"} 정페이 데이터를 전부 지울까요?\n가입자·셀러 번호·물건·충전/결제 기록·랭킹·PIN이 모두 사라지고 되돌릴 수 없어요.`, { okText: "다음" }))) return;
+  const v = await ask("정말 지우려면 '초기화'라고 입력하세요", { input: "", okText: "전부 삭제", text: true });
+  if (v == null || String(v).trim() !== "초기화") return toast("취소했어요");
+  try { await S.be.wipe(); toast("전부 지웠어요"); } catch (e) { return toast("삭제 실패: " + (e.code || e.message)); }
+  LS.del("jp_me_buyer"); LS.del("jp_me_seller"); LS.del("jp_me_all"); setTimeout(() => location.reload(), 900);
+};
 
 /* ---- 시작: URL에 ?item=번호 가 있으면 자동으로 열기 ---- */
 boot().then(() => {
