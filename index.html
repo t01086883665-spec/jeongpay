@@ -1818,16 +1818,34 @@ $("#wSellerOn").onclick = async () => { if (await ask("셀러로 등록할까요
 /* ---- QR 스캔: 앱 안(BarcodeDetector) → 안 되면 기본 카메라 앱 안내 ---- */
 let scanStream = null, scanTimer = null;
 $("#wScan").onclick = async () => {
-  if (!("BarcodeDetector" in window) || !navigator.mediaDevices?.getUserMedia) return toast("폰 기본 카메라로 QR을 찍으면 이 앱이 열려요. 또는 번호를 입력하세요.");
+  if (!navigator.mediaDevices?.getUserMedia) return toast("이 브라우저는 카메라를 못 써요. 폰 기본 카메라로 QR을 찍거나 번호를 입력하세요.");
+  const hasBD = "BarcodeDetector" in window;
+  let jsQR = null;
+  if (!hasBD) {
+    toast("QR 인식 준비 중…");
+    try { jsQR = await loadJsQR(); } catch { return toast("QR 인식기를 불러오지 못했어요. 번호를 입력하세요."); }
+  }
   try {
-    scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
-  } catch { return toast("카메라를 열 수 없어요. 번호를 입력하세요."); }
-  const v = $("#scanVideo"); v.srcObject = scanStream; $("#scanBox").hidden = false;
-  const det = new BarcodeDetector({ formats: ["qr_code"] });
+    scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+  } catch { return toast("카메라 권한이 필요해요. 설정에서 허용하거나 번호를 입력하세요."); }
+  const v = $("#scanVideo"); v.srcObject = scanStream; v.setAttribute("playsinline", ""); v.muted = true; await v.play().catch(() => {});
+  $("#scanBox").hidden = false;
+  const det = hasBD ? new BarcodeDetector({ formats: ["qr_code"] }) : null;
+  const cv = document.createElement("canvas"), cx = cv.getContext("2d", { willReadFrequently: true });
   scanTimer = setInterval(async () => {
-    try { const codes = await det.detect(v); if (codes[0]) { const no = parseQr(codes[0].rawValue); if (no) { stopScan(); openShop(no); } } } catch {}
-  }, 400);
+    try {
+      if (!v.videoWidth) return;
+      let raw = null;
+      if (det) { const codes = await det.detect(v); raw = codes[0]?.rawValue; }
+      else { const w = Math.min(640, v.videoWidth), h = Math.round(v.videoHeight * w / v.videoWidth); cv.width = w; cv.height = h; cx.drawImage(v, 0, 0, w, h); const img = cx.getImageData(0, 0, w, h); raw = jsQR(img.data, w, h, { inversionAttempts: "dontInvert" })?.data; }
+      if (raw) { const no = parseQr(raw); if (no) { stopScan(); openShop(no); } }
+    } catch {}
+  }, 350);
 };
+function loadJsQR() {
+  if (window.jsQR) return Promise.resolve(window.jsQR);
+  return new Promise((res, rej) => { const sc = document.createElement("script"); sc.src = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"; sc.onload = () => window.jsQR ? res(window.jsQR) : rej(); sc.onerror = rej; document.head.appendChild(sc); });
+}
 function stopScan() { clearInterval(scanTimer); scanStream?.getTracks().forEach(t => t.stop()); scanStream = null; $("#scanBox").hidden = true; }
 $("#scanStop").onclick = stopScan;
 function parseQr(s) { const m = /(?:[?&#](?:seller|item)[=-]|^JP:)(\d+)/.exec(s || ""); return m ? Number(m[1]) : null; }
