@@ -1775,7 +1775,8 @@ async function makeFirebaseBackend(cfg) {
 const S = { users: [], items: [], requests: [], txns: [], settings: [], me: null, be: null, screen: "wallet", adminOpen: false, buyItem: null };
 const byId = (arr, id) => arr.find(x => x.id === id);
 const me = () => byId(S.users, S.me?.id) || S.me;
-const myItems = () => S.items.filter(i => i.sellerId === S.me?.id).sort((a, b) => a.no - b.no);
+const myItems = () => S.items.filter(i => i.sellerId === S.me?.id && i.status !== "삭제").sort((a, b) => a.no - b.no);
+const isPay = t => t.type === "pay" && !t.cancelled;
 const nowIso = () => new Date().toISOString();
 
 function setupApp() {
@@ -1830,7 +1831,7 @@ async function becomeSeller(u, shop) {
     t.update("meta", "counters", { sellerNo: no }); t.update("users", u.id, { isSeller: true, sellerNo: no, shopName: shop || cur?.shopName || u.name });
   });
 }
-function enter(u) { S.me = u; if (APP === "all" && location.hash === "#admin") { $("#tabAdmin").hidden = false; S.screen = "admin"; } if (APP === "seller") { S.screen = "seller"; becomeSeller(u, S.pendingShop).catch(e => toast("셀러 등록 실패: " + e.message)); S.pendingShop = null; } LS.set("jp_me_" + APP, { id: u.id, name: u.name, sid: u.sid }); $("#tabs").hidden = false; go(S.screen === "gate" ? "wallet" : S.screen); render(); }
+function enter(u) { S.me = u; if (APP === "all" && location.hash === "#admin") { $("#tabAdmin").hidden = false; S.screen = "admin"; } if (APP === "seller") { S.screen = "seller"; becomeSeller(u, S.pendingShop).catch(e => toast("셀러 등록 실패: " + e.message)); S.pendingShop = null; } LS.set("jp_me_" + APP, { id: u.id, name: u.name, sid: u.sid }); $("#tabs").hidden = false; go(S.screen === "gate" ? "wallet" : S.screen); render(); if (S.qrShop && S.tryQrOpen) setTimeout(S.tryQrOpen, 400); }
 $("#tabLogout").onclick = async () => { if (await ask("이 기기에서 나갈까요? 잔액은 같은 전화번호로 다시 들어오면 그대로예요.", { okText: "나가기" })) { LS.del("jp_me_" + APP); S.me = null; $("#gName").value = ""; $("#gSid").value = ""; $("#buyCard").hidden = true; S.buyItem = null; $("#tabs").hidden = true; go("gate"); render(); } };
 
 function forceLogout() {
@@ -1869,20 +1870,31 @@ function renderWallet(m) {
   const topups = pend.filter(r => r.type === "topup").reduce((a, r) => a + r.amount, 0);
   const pays = pend.filter(r => r.type === "pay");
   $("#wPending").textContent = [topups ? `충전 승인 대기 ${won(topups)}` : "", pays.length ? `결제 확정 대기 ${pays.length}건` : ""].filter(Boolean).join(" · ");
-  const buys = S.txns.filter(t => t.type === "pay" && t.buyerId === m.id).sort((a, b) => b.at.localeCompare(a.at));
+  const buys = S.txns.filter(t => isPay(t) && t.buyerId === m.id).sort((a, b) => b.at.localeCompare(a.at));
   $("#wBuys").innerHTML = buys.length ? buys.map(t => `<div class="item"><div class="ph">🧾</div><div class="meta"><b>${esc(t.itemName)}</b><small>${esc(shopOf(t.sellerId, t.sellerName))} · ${t.discount > 0 ? `흥정으로 ${won(t.discount)} 아낌` : "정가 구매"} · ${new Date(t.at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</small></div><div class="price">${won(t.amount)}</div></div>`).join("") : '<div class="muted">아직 없음</div>';
   // 운영진이 보낸 충전 취소 요청 → 지갑에 알림 + 충전 버튼 점
   const adminRef = S.requests.filter(r => r.status === "pending" && r.type === "refund" && r.byAdmin && r.buyerId === m.id);
   $("#wChargeDot").hidden = !adminRef.length;
   $("#wAlert").hidden = !adminRef.length;
   if (adminRef.length) { $("#wAlert").innerHTML = `<b>⚠️ 환전소가 충전 ${won(adminRef[0].amount)} 취소를 요청했어요</b><p class="muted" style="font-size:13px;margin:4px 0 8px">잘못 승인된 충전이에요. 확인해 주세요.</p><button class="btn small" id="wAlertGo">충전 화면에서 확인</button>`; $("#wAlertGo").onclick = () => go("charge"); }
+  // 내 결제 요청이 셀러 거절 / 품절로 끝났으면 알림
+  const seen = renderWallet._pend ||= new Set();
+  S.requests.filter(r => r.type === "pay" && r.buyerId === m.id && seen.has(r.id) && r.status === "cancel").forEach(r => {
+    seen.delete(r.id);
+    if (r.cancelBy === "seller") toast(`셀러가 '${r.itemName}' 결제 요청을 거절했어요`);
+    else if (r.cancelBy === "sold") toast(`'${r.itemName}'은(는) 다른 손님이 먼저 샀어요`);
+  });
+  pays.forEach(r => seen.add(r.id));
+  const seenPay = renderWallet._buys ||= new Set();
+  S.txns.filter(t => t.type === "pay" && t.buyerId === m.id && t.cancelled && seenPay.has(t.id)).forEach(t => { seenPay.delete(t.id); toast(`'${t.itemName}' 구매가 취소돼 ${won(t.amount)}을 돌려받았어요`); });
+  buys.forEach(t => seenPay.add(t.id));
   // 결제 대기 카드 (내가 요청한 것)
   if (pays.length && !S.buyItem) {
     const r = pays[0];
     S.cardKind = "pending";
     $("#buyCard").hidden = false;
     $("#buyCard").innerHTML = `<div class="done-big"><div class="ic">⏳</div><h3>${esc(r.itemName)}</h3><p class="muted">셀러가 가격을 확정하는 중…<br>흥정하셨다면 지금 깎아달라고 말하세요!</p><div class="won" style="font-size:36px">${won(r.listPrice)}</div><div class="muted" style="font-size:13px">정가 기준 · 확정가는 셀러가 입력</div><div style="height:10px"></div><button class="btn ghost small" id="buyCancel">요청 취소</button></div>`;
-    $("#buyCancel").onclick = async () => { await S.be.update("requests", r.id, { status: "cancel" }); toast("구매 요청을 취소했어요"); };
+    $("#buyCancel").onclick = async () => { await S.be.update("requests", r.id, { status: "cancel", cancelBy: "buyer" }); toast("구매 요청을 취소했어요"); };
   } else if (!S.buyItem) {
     if (S.cardKind === "pending") { $("#buyCard").hidden = true; $("#buyCard").innerHTML = ""; S.cardKind = null; }
     // 방금 확정된 결제 알림
@@ -1912,6 +1924,7 @@ function renderBuy(item) {
   $("#buyClose").onclick = () => { const s2 = byId(S.users, item.sellerId); if (s2?.sellerNo) renderShop(s2); else { S.buyItem = null; S.cardKind = null; c.hidden = true; render(); } };
   $("#buyGo").onclick = async () => {
     if (S.requests.some(r => r.status === "pending" && r.type === "pay" && r.buyerId === m.id)) return toast("확정 대기 중인 결제가 있어요. 먼저 끝내 주세요");
+    if (S.requests.some(r => r.status === "pending" && r.type === "pay" && r.itemId === item.id)) return toast("다른 손님이 이 물건을 결제 중이에요. 잠시 후 다시 봐 주세요");
     await S.be.add("requests", { type: "pay", status: "pending", buyerId: m.id, buyerName: m.name, itemId: item.id, itemNo: item.no, itemName: item.name, sellerId: item.sellerId, sellerName: item.sellerName, listPrice: item.price, createdAt: nowIso() });
     S.buyItem = null; S.cardKind = null; toast("셀러에게 결제 요청을 보냈어요"); render();
   };
@@ -1924,7 +1937,7 @@ function openShop(no) {
 }
 function renderShop(seller) {
   S.buyItem = { shop: seller.id }; S.cardKind = "shop";
-  const items = S.items.filter(i => i.sellerId === seller.id).sort((a, b) => a.no - b.no);
+  const items = S.items.filter(i => i.sellerId === seller.id && i.status !== "삭제").sort((a, b) => a.no - b.no);
   const c = $("#buyCard"); c.hidden = false;
   c.innerHTML = `<h3 style="margin-top:0">🏪 <span class="no" style="font-size:18px">${pad3(seller.sellerNo)}</span> ${esc(seller.shopName || seller.name)}</h3>
     <p class="muted" style="font-size:13px;margin:0 0 8px">사고 싶은 물건을 고르세요. 정가(情價)는 이미 정으로 할인된 가격 — 더 깎고 싶으면 셀러에게 말로 흥정하세요.</p>
@@ -1965,7 +1978,7 @@ function renderCharge(m) {
     ...ownRef.map(r => `<div class="item"><div class="ph">↩️</div><div class="meta"><b>충전 취소 ${won(r.amount)} 처리 대기</b><small>${hm(r.createdAt)} · 환전소에서 현금을 돌려받으면 처리돼요</small></div><button class="btn ghost small" data-cancel-req="${r.id}">철회</button></div>`),
   ].join("");
   // 충전 · 사용 내역 (잔액 흐름)
-  const rows = S.txns.filter(t => t.buyerId === m.id || (t.type === "pay" && t.sellerId === m.id)).sort((a, b) => a.at.localeCompare(b.at));
+  const rows = S.txns.filter(t => t.buyerId === m.id || (t.type === "pay" && t.sellerId === m.id)).flatMap(t => t.cancelled ? [t, { ...t, type: "paycancel", at: t.cancelledAt || t.at }] : [t]).sort((a, b) => a.at.localeCompare(b.at));
   let bal = 0;
   const hist = rows.map(t => {
     let sign = 0, title = "", sub = "";
@@ -1974,6 +1987,8 @@ function renderCharge(m) {
     else if (t.type === "payout") { sign = -1; title = "정산 (현금 수령)"; sub = "환전소"; }
     else if (t.type === "pay" && t.buyerId === m.id) { sign = -1; title = t.itemName; sub = `${shopOf(t.sellerId, t.sellerName)}${t.discount > 0 ? ` · 흥정 −${won(t.discount)}` : ""}`; }
     else if (t.type === "pay") { sign = 1; title = `판매: ${t.itemName}`; sub = `${t.buyerName}님 구매`; }
+    else if (t.type === "paycancel" && t.buyerId === m.id) { sign = 1; title = `구매 취소: ${t.itemName}`; sub = "돌려받음"; }
+    else if (t.type === "paycancel") { sign = -1; title = `판매 취소: ${t.itemName}`; sub = `${t.buyerName}님에게 돌려줌`; }
     bal += sign * t.amount;
     let act = "";
     if (t.type === "topup") {
@@ -1981,7 +1996,7 @@ function renderCharge(m) {
       if (ref) act = `<span class="badge gray">${ref.status === "done" ? "취소됨" : "취소 처리 중"}</span>`;
       else if (Date.now() - new Date(t.at).getTime() < 3 * 3600000) act = `<button class="btn ghost small" data-refund="${t.id}" data-amt="${t.amount}">취소 요청</button>`;
     }
-    return { at: t.at, html: `<div class="item"><div class="ph">${t.type === "topup" ? "💰" : t.type === "refund" ? "↩️" : t.type === "payout" ? "💵" : sign > 0 ? "🏷️" : "🧾"}</div><div class="meta"><b>${esc(title)}</b><small>${hm(t.at)} · ${esc(sub)} · 잔액 ${won(bal)}</small></div><div style="text-align:right"><div class="hist-amt ${sign > 0 ? "plus" : "minus"}">${sign > 0 ? "+" : "−"}${won(t.amount)}</div>${act}</div></div>` };
+    return { at: t.at, html: `<div class="item"><div class="ph">${t.type === "topup" ? "💰" : t.type === "refund" || t.type === "paycancel" ? "↩️" : t.type === "payout" ? "💵" : sign > 0 ? "🏷️" : "🧾"}</div><div class="meta"><b>${esc(title)}</b><small>${hm(t.at)} · ${esc(sub)} · 잔액 ${won(bal)}</small></div><div style="text-align:right"><div class="hist-amt ${sign > 0 ? "plus" : "minus"}">${sign > 0 ? "+" : "−"}${won(t.amount)}</div>${act}</div></div>` };
   }).reverse();
   $("#cHist").innerHTML = hist.length ? hist.map(h => h.html).join("") : '<div class="muted">아직 없음</div>';
   // 버튼 동작
@@ -2074,24 +2089,31 @@ $("#sDoneAgain").onclick = () => { $("#iName").value = ""; $("#iPrice").value = 
 
 function renderSeller(m) {
   const mine = myItems();
-  const sales = S.txns.filter(t => t.type === "pay" && t.sellerId === m.id);
+  const sales = S.txns.filter(t => isPay(t) && t.sellerId === m.id);
   const rev = sales.reduce((a, t) => a + t.amount, 0), disc = sales.reduce((a, t) => a + t.discount, 0);
   $("#sCount").textContent = `${mine.length}/${RULE.MAX_ITEMS}`;
   $("#sSales").textContent = sales.length; $("#sRev").textContent = won(rev); $("#sDisc").textContent = won(disc);
   const rank = ranking(); const myRank = rank.findIndex(r => r.sellerId === m.id) + 1;
   $("#sStatusBox").className = "sellerbox " + (myRank === 1 ? "open" : "");
   $("#sStatusText").textContent = myRank ? `🏆 흥정왕 랭킹 ${myRank}위 (할인 합계 ${won(disc)})` : "아직 흥정 기록 없음 — 깎아주면 랭킹에 올라가요";
-  $("#sItems").innerHTML = mine.length ? mine.map(i => `<div class="item ${i.status !== "판매중" ? "sold" : ""}">${i.photo ? `<img src="${i.photo}" alt="">` : `<div class="ph">🎁</div>`}<div class="meta"><span class="no">No.${pad3(i.no)}</span><b>${esc(i.name)}</b><small>${i.status}</small></div><div class="price">${won(i.price)}</div></div>`).join("") : '<div class="muted">아직 없음</div>';
+  $("#sItems").innerHTML = mine.length ? mine.map(i => `<div class="item ${i.status !== "판매중" ? "sold" : ""}">${i.photo ? `<img src="${i.photo}" alt="">` : `<div class="ph">🎁</div>`}<div class="meta"><span class="no">No.${pad3(i.no)}</span><b>${esc(i.name)}</b><small>${i.status}${i.status === "판매됨" && i.soldPrice != null ? ` · ${won(i.soldPrice)}에 판매` : ""}</small><div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">${i.status === "판매중" ? `<button class="btn ghost small" data-edit="${i.id}" style="width:auto;flex:0 0 auto;padding:6px 12px;font-size:14px">✏️ 수정</button><button class="btn ghost small" data-del="${i.id}" style="width:auto;flex:0 0 auto;padding:6px 12px;font-size:14px">🗑 삭제</button>` : `<button class="btn ghost small" data-unsell="${i.id}" style="width:auto;flex:0 0 auto;padding:6px 12px;font-size:14px">↩️ 판매 취소</button>`}</div></div><div class="price">${won(i.price)}</div></div>`).join("") : '<div class="muted">아직 없음</div>';
+  $("#sItems").querySelectorAll("[data-edit]").forEach(b => b.onclick = () => editItem(byId(S.items, b.dataset.edit)));
+  $("#sItems").querySelectorAll("[data-del]").forEach(b => b.onclick = () => deleteItem(byId(S.items, b.dataset.del)));
+  $("#sItems").querySelectorAll("[data-unsell]").forEach(b => b.onclick = () => cancelSale(S.txns.find(t => isPay(t) && t.itemId === b.dataset.unsell), "seller"));
   $("#sMyShop").textContent = m.shopName || m.name;
   if (m.sellerNo && renderSeller._qrNo !== m.sellerNo) { renderSeller._qrNo = m.sellerNo; $("#sMyNo").textContent = "셀러 No." + pad3(m.sellerNo); try { QRCode.toCanvas($("#sMyQr"), itemUrl(m.sellerNo), { width: 200, margin: 1 }); } catch (e) { console.error(e); } }
   // 결제 요청
   const reqs = S.requests.filter(r => r.status === "pending" && r.type === "pay" && r.sellerId === m.id).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   $("#sellerDot").hidden = !reqs.length;
+  const reqKey = reqs.map(r => r.id + ":" + (byId(S.users, r.buyerId)?.balance ?? "")).join("|");
+  if (renderSeller._reqKey === reqKey) return;
+  renderSeller._reqKey = reqKey;
+  const keep = {}; $("#sReqs").querySelectorAll(".req").forEach(b => { keep[b.dataset.id] = b.querySelector(".fin").value; });
   $("#sReqs").innerHTML = reqs.map(r => {
     const buyer = byId(S.users, r.buyerId);
     return `<div class="req" data-id="${r.id}">
       <div class="head"><b>🤝 ${esc(r.buyerName)}님이 사겠대요</b><span class="no">No.${pad3(r.itemNo)}</span></div>
-      <div class="sub">${esc(r.itemName)} · 정가 ${won(r.listPrice)} · 손님 잔액 ${won(buyer?.balance)}</div>
+      <div class="sub">${esc(r.itemName)} · 정가 ${won(r.listPrice)} · 손님 잔액 ${won(buyer?.balance)}</div>${(buyer?.balance || 0) < r.listPrice ? `<div class="hint" style="color:#c0392b">⚠️ 손님 잔액이 정가보다 적어요 — ${won(buyer?.balance)} 이하로 확정하거나 충전 후 확정</div>` : ""}
       <div class="chips">${[0, 500, 1000, 2000, 3000, 5000].map(d => `<button class="chip" data-d="${d}">${d ? "−" + d.toLocaleString() : "정가로"}</button>`).join("")}</div>
       <div class="hint">할인 버튼은 누를 때마다 누적돼요 (−500 두 번 = −1,000). '정가로'를 누르면 처음으로.</div>
       <div class="pricebox"><span>확정가</span><input type="number" class="fin" step="100" inputmode="numeric" value="${r.listPrice}"><span>원</span></div>
@@ -2100,12 +2122,48 @@ function renderSeller(m) {
     </div>`; }).join("");
   $("#sReqs").querySelectorAll(".req").forEach(box => {
     const r = byId(S.requests, box.dataset.id), inp = box.querySelector(".fin"), disc = box.querySelector(".disc");
+    if (keep[r.id] != null) inp.value = keep[r.id];
     const upd = () => { const p = Number(inp.value); const d = r.listPrice - p; disc.textContent = d > 0 ? `흥정 할인 ${won(d)} → 내 흥정 점수 +${won(d)}` : d < 0 ? "정가보다 높게는 안 돼요" : ""; };
     inp.oninput = upd; upd();
     box.querySelectorAll(".chip").forEach(c => c.onclick = () => { const d = Number(c.dataset.d); inp.value = d === 0 ? r.listPrice : Math.max(0, (Number(inp.value) || r.listPrice) - d); upd(); });
-    box.querySelector(".rej").onclick = async () => { if (await ask("이 결제 요청을 거절할까요?", { okText: "거절" })) S.be.update("requests", r.id, { status: "cancel" }); };
+    box.querySelector(".rej").onclick = async () => { if (await ask("이 결제 요청을 거절할까요?", { okText: "거절" })) S.be.update("requests", r.id, { status: "cancel", cancelBy: "seller" }); };
     box.querySelector(".conf").onclick = () => confirmPay(r, Number(inp.value));
   });
+}
+const itemBusy = it => S.requests.some(r => r.status === "pending" && r.type === "pay" && r.itemId === it.id);
+async function editItem(it) {
+  if (!it || it.status !== "판매중") return toast("판매 중인 물건만 고칠 수 있어요");
+  if (itemBusy(it)) return toast("이 물건에 결제 요청이 와 있어요. 먼저 처리해 주세요");
+  const name = await ask(`No.${pad3(it.no)} 물건 이름`, { input: it.name, okText: "다음", text: true });
+  if (name == null) return; const nm = name.trim().slice(0, 30); if (!nm) return toast("이름을 적어 주세요");
+  if (myItems().some(i => i.id !== it.id && i.name === nm)) return toast("같은 이름의 물건이 이미 있어요");
+  const pv = await ask(`정가(情價) · 최대 ${won(RULE.MAX_PRICE)} · 100원 단위`, { input: it.price, okText: "저장" });
+  if (pv == null) return; const price = Number(pv);
+  if (!Number.isFinite(price) || price < RULE.UNIT || price > RULE.MAX_PRICE || price % RULE.UNIT) return toast(`정가는 100원 단위, 최대 ${won(RULE.MAX_PRICE)}예요`);
+  await S.be.update("items", it.id, { name: nm, price, updatedAt: nowIso() }); toast("물건 정보를 고쳤어요");
+}
+async function deleteItem(it) {
+  if (!it || it.status !== "판매중") return toast("판매된 물건은 지울 수 없어요 (먼저 판매 취소)");
+  if (itemBusy(it)) return toast("이 물건에 결제 요청이 와 있어요. 먼저 처리해 주세요");
+  if (!(await ask(`No.${pad3(it.no)} '${it.name}'을(를) 목록에서 지울까요?`, { okText: "삭제" }))) return;
+  await S.be.update("items", it.id, { status: "삭제", deletedAt: nowIso() }); toast("물건을 지웠어요");
+}
+async function cancelSale(t, by) {
+  if (!t || t.cancelled) return toast("취소할 판매 기록이 없어요");
+  if (!(await ask(`'${t.itemName}' 판매를 취소할까요?\n${t.buyerName}님에게 ${won(t.amount)}을 정페이로 돌려주고, 물건은 다시 '판매중'이 돼요.`, { okText: "판매 취소" }))) return;
+  try {
+    await S.be.transact(async tx => {
+      const cur = await tx.get("txns", t.id); if (!cur || cur.cancelled) throw new Error("이미 취소된 판매예요");
+      const buyer = await tx.get("users", t.buyerId), seller = await tx.get("users", t.sellerId), item = await tx.get("items", t.itemId);
+      if (!buyer || !seller) throw new Error("회원 정보 없음");
+      if ((seller.balance || 0) < t.amount) throw new Error(`셀러 잔액 부족 (${won(seller.balance)}) — 이미 정산했다면 환전소에서 현금으로 처리하세요`);
+      tx.update("users", buyer.id, { balance: (buyer.balance || 0) + t.amount });
+      tx.update("users", seller.id, { balance: (seller.balance || 0) - t.amount, sales: Math.max(0, (seller.sales || 0) - t.amount) });
+      if (item) tx.update("items", item.id, { status: "판매중", soldPrice: null, soldAt: null, buyerId: null });
+      tx.update("txns", t.id, { cancelled: true, cancelledAt: nowIso(), cancelBy: by });
+    });
+    toast(`판매 취소 완료 · ${won(t.amount)} 돌려줬어요`);
+  } catch (e) { toast(e.message || "실패"); }
 }
 async function confirmPay(r, final) {
   if (!Number.isFinite(final) || final < 0 || final % RULE.UNIT !== 0) return toast("확정가는 100원 단위예요");
@@ -2121,6 +2179,7 @@ async function confirmPay(r, final) {
       t.update("users", seller.id, { balance: (seller.balance || 0) + final, sales: (seller.sales || 0) + final });
       t.update("items", item.id, { status: "판매됨", soldPrice: final, soldAt: nowIso(), buyerId: buyer.id });
       t.update("requests", req.id, { status: "done", finalPrice: final, doneAt: nowIso() });
+      S.requests.filter(x => x.id !== req.id && x.status === "pending" && x.type === "pay" && x.itemId === item.id).forEach(x => t.update("requests", x.id, { status: "cancel", cancelBy: "sold" }));
       t.set("txns", uid(), { type: "pay", buyerId: buyer.id, buyerName: buyer.name, sellerId: seller.id, sellerName: shopLabel(seller) || seller.name, itemId: item.id, itemNo: item.no, itemName: item.name, listPrice: r.listPrice, amount: final, discount: r.listPrice - final, at: nowIso() });
     });
     toast(`확정! ${won(final)} 받았어요`);
@@ -2144,7 +2203,7 @@ $("#sPayout").onclick = async () => {
    ============================================================ */
 function ranking() {
   const map = {};
-  S.txns.filter(t => t.type === "pay").forEach(t => { const r = map[t.sellerId] ||= { sellerId: t.sellerId, name: shopOf(t.sellerId, t.sellerName), disc: 0, n: 0, rev: 0 }; r.disc += t.discount; r.n++; r.rev += t.amount; });
+  S.txns.filter(isPay).forEach(t => { const r = map[t.sellerId] ||= { sellerId: t.sellerId, name: shopOf(t.sellerId, t.sellerName), disc: 0, n: 0, rev: 0 }; r.disc += t.discount; r.n++; r.rev += t.amount; });
   return Object.values(map).sort((a, b) => b.disc - a.disc || b.n - a.n);
 }
 const adminPin = () => byId(S.settings, "admin")?.pin || RULE.ADMIN_PIN;
@@ -2188,14 +2247,15 @@ function renderAdmin() {
   });
   const users = S.users.slice().sort((a, b) => a.name.localeCompare(b.name, "ko"));
   $("#aUserPick").innerHTML = users.map(u => `<option value="${u.id}">${u.sellerNo ? "[" + esc(shopLabel(u)) + "] " : ""}${esc(u.name)} (${esc(u.sid)}) · ${won(u.balance)}</option>`).join("");
-  const pays = S.txns.filter(t => t.type === "pay"), tops = S.txns.filter(t => t.type === "topup"), refs = S.txns.filter(t => t.type === "refund");
-  $("#aUsers").textContent = S.users.length; $("#aItems").textContent = S.items.length; $("#aSold").textContent = pays.length;
+  const pays = S.txns.filter(isPay), tops = S.txns.filter(t => t.type === "topup"), refs = S.txns.filter(t => t.type === "refund");
+  $("#aUsers").textContent = S.users.length; $("#aItems").textContent = S.items.filter(i => i.status !== "삭제").length; $("#aSold").textContent = pays.length;
   $("#aCharged").textContent = won(tops.reduce((a, t) => a + t.amount, 0) - refs.reduce((a, t) => a + t.amount, 0)); $("#aRev").textContent = won(pays.reduce((a, t) => a + t.amount, 0));
   $("#aFloat").textContent = won(S.users.reduce((a, u) => a + (u.balance || 0), 0));
   const rk = ranking();
   $("#aRank tbody").innerHTML = rk.length ? rk.slice(0, 10).map((r, i) => `<tr class="${i === 0 ? "rank1" : ""}"><td>${i + 1}</td><td>${esc(r.name)}</td><td class="r"><b>${won(r.disc)}</b></td><td class="r">${r.n}</td></tr>`).join("") : '<tr><td colspan="4" class="muted">아직 거래 없음</td></tr>';
   const log = S.txns.slice().sort((a, b) => b.at.localeCompare(a.at)).slice(0, 30);
-  $("#aLog").innerHTML = log.length ? log.map(t => `<div class="ticker">${new Date(t.at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} · ${t.type === "pay" ? `🤝 ${esc(t.buyerName)} → ${esc(shopOf(t.sellerId, t.sellerName))} · ${esc(t.itemName)} <b>${won(t.amount)}</b>${t.discount ? ` <span class="badge green">−${won(t.discount)}</span>` : ""}` : t.type === "topup" ? `💰 ${esc(t.buyerName)} 충전 <b>${won(t.amount)}</b>` : t.type === "refund" ? `↩️ ${esc(t.buyerName)} 충전 취소 <b>${won(t.amount)}</b>` : `💵 ${esc(t.buyerName)} 정산 <b>${won(t.amount)}</b>`}</div>`).join("") : '<div class="muted">아직 거래 없음</div>';
+  $("#aLog").innerHTML = log.length ? log.map(t => `<div class="ticker">${new Date(t.at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} · ${t.type === "pay" ? `🤝 ${esc(t.buyerName)} → ${esc(shopOf(t.sellerId, t.sellerName))} · ${esc(t.itemName)} <b>${won(t.amount)}</b>${t.discount ? ` <span class="badge green">−${won(t.discount)}</span>` : ""}${t.cancelled ? ` <span class="badge gray">취소됨</span>` : ` <button class="btn ghost small" data-admin-cancel="${t.id}" style="padding:2px 8px">판매 취소</button>`}` : t.type === "topup" ? `💰 ${esc(t.buyerName)} 충전 <b>${won(t.amount)}</b>` : t.type === "refund" ? `↩️ ${esc(t.buyerName)} 충전 취소 <b>${won(t.amount)}</b>` : `💵 ${esc(t.buyerName)} 정산 <b>${won(t.amount)}</b>`}</div>`).join("") : '<div class="muted">아직 거래 없음</div>';
+  $("#aLog").querySelectorAll("[data-admin-cancel]").forEach(b => b.onclick = () => cancelSale(S.txns.find(t => t.id === b.dataset.adminCancel), "admin"));
 }
 async function approve(r) {
   try {
@@ -2270,8 +2330,8 @@ $("#aWipe").onclick = async () => {
 /* ---- 시작: URL에 ?item=번호 가 있으면 자동으로 열기 ---- */
 boot().then(() => {
   const no = parseQr(location.search) || parseQr(location.hash);
-  window.addEventListener("hashchange", () => { const n = parseQr(location.hash); if (n && S.me && APP !== "seller" && APP !== "admin") { go("wallet"); openShop(n); } });
-  if (no) { const tryOpen = (n = 0) => { if (S.me && S.users.length) { go("wallet"); openShop(no); } else if (n < 20) setTimeout(() => tryOpen(n + 1), 300); }; tryOpen(); }
+  window.addEventListener("hashchange", () => { const n = parseQr(location.hash); if (n && APP !== "seller" && APP !== "admin") { if (S.me) { go("wallet"); openShop(n); } else S.qrShop = n; } });
+  if (no && APP !== "seller" && APP !== "admin") { S.qrShop = no; const tryOpen = (n = 0) => { if (!S.qrShop) return; if (S.me && S.users.length) { const k = S.qrShop; S.qrShop = null; go("wallet"); openShop(k); } else if (n < 40 && S.me) setTimeout(() => tryOpen(n + 1), 300); }; tryOpen(); S.tryQrOpen = () => tryOpen(); }
 });
 window.__jp = S;
 </script>
