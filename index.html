@@ -96,6 +96,39 @@
   .sellerbox.closed{border:2px solid var(--danger);background:#fde8e8}
   .sellerbox .st{font-weight:700;font-size:15px}
   @media (max-width:380px){ .balance .won{font-size:44px} }
+  .badge:empty{display:none}
+  .btn .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);margin-left:4px}
+  .card.alert{border:2px solid var(--accent);background:var(--soft)}
+  .hist-amt{font-family:var(--font-display);font-size:18px;white-space:nowrap}
+  .hist-amt.plus{color:var(--ok)} .hist-amt.minus{color:var(--accent)}
+  .subnav{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px}
+  .subnav button{flex:0 0 auto;padding:9px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:14px;font-weight:700;cursor:pointer}
+  .subnav button.on{background:var(--bar);color:#fff;border-color:var(--bar)}
+  .subnav .gear{margin-left:auto}
+  .desk-only{display:none!important}
+  #aBody .apanel{display:none}
+  #aBody[data-view=req] .apanel[data-panel=req],#aBody[data-view=refund] .apanel[data-panel=refund],#aBody[data-view=stat] .apanel[data-panel=stat],#aBody[data-view=set] .apanel[data-panel=set]{display:block}
+  /* ---- 넓은 화면 (노트북·PC) ---- */
+  @media (min-width:1000px){
+    main{max-width:1280px;padding:18px 24px 90px}
+    nav.tabs{left:50%;right:auto;transform:translateX(-50%);width:min(720px,100%);border-radius:14px 14px 0 0;border:1px solid var(--bar-line);border-bottom:0}
+    .desk-only{display:inline-flex!important}
+    .subnav .mob-only{display:none}
+    #aBody:not([data-view=set]) .agrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.15fr);gap:16px;align-items:start}
+    #aBody:not([data-view=set]) .agrid .apanel{display:block}
+    #aBody[data-view=set] .agrid{display:none}
+    #aBody .setgrid{grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+    #aBody[data-view=set] .setgrid{display:grid}
+    #aBody #aLog{max-height:420px;overflow:auto}
+    #aBody #aReqs,#aBody #aRefReqs,#aBody #aRecentTops{max-height:60vh;overflow:auto}
+    #s-wallet.on,#s-charge.on,#s-seller.on{column-count:2;column-gap:16px}
+    #s-wallet.on>*,#s-charge.on>*,#s-seller.on>*{break-inside:avoid}
+    #s-seller.on>#sReqs{column-span:all}
+    #s-seller.on>#sReqs:not(:empty){display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:12px;margin-bottom:12px}
+    #s-seller.on>#sReqs .req{margin:0}
+    #s-gate.on{max-width:520px;margin:0 auto}
+    #aLock{max-width:520px;margin:0 auto 12px}
+  }
 </style>
 </head>
 <body>
@@ -138,7 +171,7 @@
     </div>
     <div class="row">
       <button class="btn" id="wScan">📷 가게 QR 찍기</button>
-      <button class="btn ghost" id="wTopup">💰 충전 요청</button>
+      <button class="btn ghost" id="wTopup">💰 충전 <span class="dot" id="wChargeDot" hidden></span></button>
     </div>
     <div class="row" style="margin-top:8px">
       <input type="number" id="wNo" inputmode="numeric" placeholder="셀러 번호 직접 입력">
@@ -148,12 +181,9 @@
       <button class="btn small ghost" id="scanStop" style="position:absolute;right:8px;top:8px">닫기</button></div>
   </div>
 
-  <div class="card" id="buyCard" hidden></div>
+  <div class="card alert" id="wAlert" hidden></div>
 
-  <div class="card" id="topupCard" hidden>
-    <h3 style="margin-top:0">충전 요청</h3>
-    <div class="list" id="wTopups"></div>
-  </div>
+  <div class="card" id="buyCard" hidden></div>
 
   <div class="card">
     <h3 style="margin-top:0">내 구매 내역</h3>
@@ -163,6 +193,33 @@
     <h3 style="margin-top:0">물건을 팔고 싶다면</h3>
     <p class="muted" style="font-size:14px;margin:0 0 10px">셀러로 등록하면 물건 등록·QR·흥정 확정 탭이 열립니다. (셀러도 손님으로 살 수 있어요)</p>
     <button class="btn ghost" id="wSellerOn">🏷️ 셀러로 등록</button>
+  </div>
+</section>
+
+<!-- 1-2. 충전 -->
+<section class="screen" id="s-charge">
+  <div class="card">
+    <button class="btn ghost small" id="cBack">← 지갑으로</button>
+    <div class="balance" style="padding-bottom:6px">
+      <div class="label">내 정(情) 잔액</div>
+      <div class="won" id="cBal">0원</div>
+    </div>
+  </div>
+  <div class="card alert" id="cAlert" hidden></div>
+  <div class="card">
+    <h3 style="margin-top:0">충전 요청</h3>
+    <p class="muted" style="font-size:13px;margin:0 0 8px">환전소에서 현금을 내고 같은 금액을 요청하면 운영진이 승인해요.</p>
+    <div class="chips" id="cChips"></div>
+    <div class="row">
+      <input type="number" id="cAmt" step="1000" min="1000" inputmode="numeric" placeholder="금액 (1,000원 단위)">
+      <button class="btn" id="cReq" style="flex:0 0 auto;width:auto">충전 요청</button>
+    </div>
+    <div class="list" id="cPending" style="margin-top:10px"></div>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">충전 · 사용 내역</h3>
+    <p class="muted" style="font-size:12px;margin:0 0 8px">승인 후 3시간 안의 충전은 '취소 요청'으로 되돌릴 수 있어요 (환전소에서 현금 환불).</p>
+    <div class="list" id="cHist"><div class="muted">아직 없음</div></div>
   </div>
 </section>
 
@@ -235,64 +292,94 @@
     <div style="height:10px"></div>
     <button class="btn" id="aUnlock">열기</button>
   </div>
-  <div id="aBody" hidden>
-    <div class="card">
-      <h2>충전 · 정산 요청 <span class="badge" id="aReqCount"></span></h2>
-      <div id="aReqs"><div class="muted">대기 중인 요청 없음</div></div>
-      <h3>충전 취소 요청 보내기 <span class="hint">잘못 승인한 충전을 손님에게 취소 요청</span></h3>
-      <div class="list" id="aRecentTops"><div class="muted">최근 승인한 충전 없음</div></div>
-      <h3>직접 충전 <span class="hint">요청 없이 운영진이 바로 넣기</span></h3>
-      <div class="row">
-        <select id="aUserPick"></select>
-        <input type="number" id="aAmt" step="1000" inputmode="numeric" placeholder="금액">
-        <button class="btn small" id="aTopupGo" style="flex:0 0 auto">충전</button>
+  <div id="aBody" hidden data-view="req">
+    <div class="subnav" id="aNav">
+      <button data-ap="dash" class="desk-only">📊 대시보드</button>
+      <button data-ap="req" class="mob-only on">요청 <span class="badge" id="aReqCount"></span></button>
+      <button data-ap="refund" class="mob-only">충전 취소 <span class="badge" id="aRefCount"></span></button>
+      <button data-ap="stat" class="mob-only">현황</button>
+      <button data-ap="set" class="gear">⚙️ 설정</button>
+    </div>
+    <div class="agrid">
+      <div class="apanel" data-panel="req">
+        <div class="card">
+          <h2>충전 · 정산 요청 <span class="badge desk-only" id="aReqCount2"></span></h2>
+          <div id="aReqs"><div class="muted">대기 중인 요청 없음</div></div>
+          <h3>직접 충전 <span class="hint">요청 없이 운영진이 바로 넣기</span></h3>
+          <div class="row">
+            <select id="aUserPick"></select>
+            <input type="number" id="aAmt" step="1000" inputmode="numeric" placeholder="금액">
+            <button class="btn small" id="aTopupGo" style="flex:0 0 auto">충전</button>
+          </div>
+        </div>
+      </div>
+      <div class="apanel" data-panel="refund">
+        <div class="card">
+          <h2>충전 취소 <span class="badge desk-only" id="aRefCount2"></span></h2>
+          <h3 style="margin-top:0">손님이 보낸 취소 요청 <span class="hint">현금 돌려준 뒤 승인</span></h3>
+          <div id="aRefReqs"><div class="muted">없음</div></div>
+          <h3>손님 동의 대기 <span class="hint">운영진이 보낸 취소 요청</span></h3>
+          <div id="aRefWait"><div class="muted">없음</div></div>
+          <h3>취소 요청 보내기 <span class="hint">잘못 승인한 충전 (최근 3시간)</span></h3>
+          <div class="list" id="aRecentTops"><div class="muted">최근 승인한 충전 없음</div></div>
+        </div>
+      </div>
+      <div class="apanel" data-panel="stat">
+        <div class="card">
+          <h2>현황</h2>
+          <div class="stat">
+            <div><b id="aUsers">0</b><span>가입</span></div>
+            <div><b id="aItems">0</b><span>물건</span></div>
+            <div><b id="aSold">0</b><span>판매</span></div>
+          </div>
+          <div class="stat" style="margin-top:8px">
+            <div><b id="aCharged">0원</b><span>총 충전</span></div>
+            <div><b id="aRev">0원</b><span>총 거래액</span></div>
+            <div><b id="aFloat">0원</b><span>미사용 잔액</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <h2>🏆 흥정왕 랭킹 <span class="hint">할인 합계</span></h2>
+          <table id="aRank"><thead><tr><th>#</th><th>셀러</th><th class="r">할인 합계</th><th class="r">건</th></tr></thead><tbody></tbody></table>
+        </div>
+        <div class="card">
+          <h2>실시간 거래</h2>
+          <div id="aLog"></div>
+        </div>
       </div>
     </div>
-    <div class="card">
-      <h2>현황</h2>
-      <div class="stat">
-        <div><b id="aUsers">0</b><span>가입</span></div>
-        <div><b id="aItems">0</b><span>물건</span></div>
-        <div><b id="aSold">0</b><span>판매</span></div>
+    <div class="apanel setgrid" data-panel="set">
+      <div class="card">
+        <h2>데이터 내보내기</h2>
+        <div class="row">
+          <button class="btn ghost small" id="aCsvTx">거래 CSV</button>
+          <button class="btn ghost small" id="aCsvItems">물건 CSV</button>
+          <button class="btn ghost small" id="aCsvUsers">회원 CSV</button>
+        </div>
       </div>
-      <div class="stat" style="margin-top:8px">
-        <div><b id="aCharged">0원</b><span>총 충전</span></div>
-        <div><b id="aRev">0원</b><span>총 거래액</span></div>
-        <div><b id="aFloat">0원</b><span>미사용 잔액</span></div>
+      <div class="card">
+        <h2>운영진 PIN 변경 <span class="hint">모든 환전소 기기에 바로 적용</span></h2>
+        <div class="row">
+          <input type="password" id="pinNew" inputmode="numeric" maxlength="8" placeholder="새 PIN (4~8자리 숫자)">
+          <input type="password" id="pinNew2" inputmode="numeric" maxlength="8" placeholder="한 번 더">
+          <button class="btn small" id="pinSave" style="flex:0 0 auto">변경</button>
+        </div>
       </div>
-    </div>
-    <div class="card">
-      <h2>🏆 흥정왕 랭킹 <span class="hint">할인 합계</span></h2>
-      <table id="aRank"><thead><tr><th>#</th><th>셀러</th><th class="r">할인 합계</th><th class="r">건</th></tr></thead><tbody></tbody></table>
-    </div>
-    <div class="card">
-      <h2>실시간 거래</h2>
-      <div id="aLog"></div>
-    </div>
-    <div class="card">
-      <h2>데이터</h2>
-      <div class="row">
-        <button class="btn ghost small" id="aCsvTx">거래 CSV</button>
-        <button class="btn ghost small" id="aCsvItems">물건 CSV</button>
-        <button class="btn ghost small" id="aCsvUsers">회원 CSV</button>
+      <div class="card">
+        <h2>서버 연결 (Firebase)</h2>
+        <p class="muted" style="font-size:13px;margin:0 0 6px" id="fbStatus"></p>
+        <textarea id="fbCfg" placeholder='Firebase 콘솔 → 프로젝트 설정 → "내 앱" → SDK 설정의 firebaseConfig = { ... } 부분을 그대로 붙여넣기'></textarea>
+        <div class="row" style="margin-top:8px">
+          <button class="btn small" id="fbSave">저장하고 연결</button>
+          <button class="btn ghost small" id="fbOff">데모 모드로</button>
+        </div>
       </div>
-      <h3>운영진 PIN 변경 <span class="hint">모든 환전소 기기에 바로 적용</span></h3>
-      <div class="row">
-        <input type="password" id="pinNew" inputmode="numeric" maxlength="8" placeholder="새 PIN (4~8자리 숫자)">
-        <input type="password" id="pinNew2" inputmode="numeric" maxlength="8" placeholder="한 번 더">
-        <button class="btn small" id="pinSave" style="flex:0 0 auto">변경</button>
-      </div>
-      <h3>서버 연결 (Firebase)</h3>
-      <p class="muted" style="font-size:13px;margin:0 0 6px" id="fbStatus"></p>
-      <textarea id="fbCfg" placeholder='Firebase 콘솔 → 프로젝트 설정 → "내 앱" → SDK 설정의 firebaseConfig = { ... } 부분을 그대로 붙여넣기'></textarea>
-      <div class="row" style="margin-top:8px">
-        <button class="btn small" id="fbSave">저장하고 연결</button>
-        <button class="btn ghost small" id="fbOff">데모 모드로</button>
-      </div>
-      <h3>데모 도구</h3>
-      <div class="row">
-        <button class="btn ghost small" id="aSeed">예시 셀러·물건 넣기</button>
-        <button class="btn ghost small danger" id="aWipe">전체 데이터 초기화</button>
+      <div class="card">
+        <h2>데모 도구</h2>
+        <div class="row">
+          <button class="btn ghost small" id="aSeed">예시 셀러·물건 넣기</button>
+          <button class="btn ghost small danger" id="aWipe">전체 데이터 초기화</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1752,9 +1839,10 @@ function forceLogout() {
 }
 function go(name) {
   S.screen = name;
-  document.querySelectorAll("nav.tabs button[data-go]").forEach(b => b.classList.toggle("on", b.dataset.go === name));
+  document.querySelectorAll("nav.tabs button[data-go]").forEach(b => b.classList.toggle("on", b.dataset.go === (name === "charge" ? "wallet" : name)));
   document.querySelectorAll("section.screen").forEach(s => s.classList.toggle("on", s.id === "s-" + name));
   if (name !== "wallet") stopScan();
+  if (name === "charge") { const m = me(); if (m) renderCharge(m); }
   window.scrollTo(0, 0);
 }
 document.querySelectorAll("nav.tabs button[data-go]").forEach(b => b.onclick = () => go(b.dataset.go));
@@ -1772,7 +1860,7 @@ function render() {
   if (!m) return;
   $("#tabSeller").hidden = APP === "all" ? !m.isSeller : APP !== "seller";
   $("#wBecomeSeller").hidden = APP !== "all" || !!m.isSeller;
-  renderWallet(m); if (m.isSeller) renderSeller(m); if (S.adminOpen) renderAdmin();
+  renderWallet(m); renderCharge(m); if (m.isSeller) renderSeller(m); if (S.adminOpen) renderAdmin();
 }
 
 function renderWallet(m) {
@@ -1781,46 +1869,27 @@ function renderWallet(m) {
   const topups = pend.filter(r => r.type === "topup").reduce((a, r) => a + r.amount, 0);
   const pays = pend.filter(r => r.type === "pay");
   $("#wPending").textContent = [topups ? `충전 승인 대기 ${won(topups)}` : "", pays.length ? `결제 확정 대기 ${pays.length}건` : ""].filter(Boolean).join(" · ");
-  // 충전 요청 버튼: 대기 중이면 중복 방지
-  $("#wTopup").disabled = topups > 0;
   const buys = S.txns.filter(t => t.type === "pay" && t.buyerId === m.id).sort((a, b) => b.at.localeCompare(a.at));
   $("#wBuys").innerHTML = buys.length ? buys.map(t => `<div class="item"><div class="ph">🧾</div><div class="meta"><b>${esc(t.itemName)}</b><small>${esc(shopOf(t.sellerId, t.sellerName))} · ${t.discount > 0 ? `흥정으로 ${won(t.discount)} 아낌` : "정가 구매"} · ${new Date(t.at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</small></div><div class="price">${won(t.amount)}</div></div>`).join("") : '<div class="muted">아직 없음</div>';
-  // 충전 요청 대기(취소 가능) + 승인된 충전(취소 요청 가능)
-  const myTopReqs = pend.filter(r => r.type === "topup");
-  const refundPend = S.requests.filter(r => r.status === "pending" && r.type === "refund" && r.buyerId === m.id);
-  const myTopDone = S.txns.filter(t => t.type === "topup" && t.buyerId === m.id && Date.now() - new Date(t.at).getTime() < 3 * 3600000).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 5);
-  const tc = $("#topupCard"); tc.hidden = !(myTopReqs.length || myTopDone.length || refundPend.length);
-  $("#wTopups").innerHTML = [
-    ...myTopReqs.map(r => `<div class="item"><div class="ph">⏳</div><div class="meta"><b>충전 ${won(r.amount)} 승인 대기</b><small>환전소에서 현금을 내면 승인돼요 · 잘못 눌렀으면 취소</small></div><button class="btn ghost small" data-cancel-topup="${r.id}">요청 취소</button></div>`),
-    ...refundPend.map(r => r.byAdmin
-      ? `<div class="item" style="border-color:var(--accent);background:var(--soft)"><div class="ph">⚠️</div><div class="meta"><b>환전소가 충전 취소를 요청했어요 ${won(r.amount)}</b><small>잘못 승인된 충전이에요. 동의하면 잔액에서 빠지고 현금은 환전소에서 돌려받아요</small></div><div class="row" style="flex:0 0 auto;width:auto;gap:4px"><button class="btn ok small" data-agree-refund="${r.id}">동의</button><button class="btn ghost small" data-cancel-topup="${r.id}">거절</button></div></div>`
-      : `<div class="item"><div class="ph">↩️</div><div class="meta"><b>충전 취소 요청 ${won(r.amount)}</b><small>환전소 확인 대기 · 현금 돌려받으면 승인돼요</small></div><button class="btn ghost small" data-cancel-topup="${r.id}">철회</button></div>`),
-    ...myTopDone.map(t => { const already = S.requests.some(r => r.type === "refund" && r.refTxn === t.id && r.status !== "cancel"); return `<div class="item"><div class="ph">💰</div><div class="meta"><b>충전 완료 ${won(t.amount)}</b><small>${new Date(t.at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}${already ? " · 취소 처리됨/요청 중" : " · 실수였다면 취소 요청"}</small></div>${already ? "" : `<button class="btn ghost small" data-refund="${t.id}" data-amt="${t.amount}">취소 요청</button>`}</div>`; }),
-  ].join("");
-  $("#wTopups").querySelectorAll("[data-cancel-topup]").forEach(b => b.onclick = async () => { if (await ask("이 요청을 취소할까요?", { okText: "취소하기" })) S.be.update("requests", b.dataset.cancelTopup, { status: "cancel" }); });
-  $("#wTopups").querySelectorAll("[data-agree-refund]").forEach(b => b.onclick = async () => {
-    const r = byId(S.requests, b.dataset.agreeRefund); if (!r) return;
-    if (!(await ask(`충전 ${won(r.amount)} 취소에 동의할까요?\n잔액에서 ${won(r.amount)}이 빠집니다.`, { okText: "동의" }))) return;
-    await approve(r);
-  });
-  $("#wTopups").querySelectorAll("[data-refund]").forEach(b => b.onclick = async () => {
-    const amt = Number(b.dataset.amt);
-    if ((m.balance || 0) < amt) return toast(`잔액(${won(m.balance)})이 충전액보다 적어 전액 취소가 안 돼요. 환전소에 말씀해 주세요`);
-    if (!(await ask(`충전 ${won(amt)}을 취소 요청할까요?\n환전소에서 현금을 돌려주고 승인하면 잔액에서 빠져요.`, { okText: "취소 요청" }))) return;
-    await S.be.add("requests", { type: "refund", status: "pending", buyerId: m.id, buyerName: m.name, sid: m.sid, amount: amt, refTxn: b.dataset.refund, createdAt: nowIso() });
-    toast("충전 취소 요청 보냄 — 환전소로 가세요");
-  });
+  // 운영진이 보낸 충전 취소 요청 → 지갑에 알림 + 충전 버튼 점
+  const adminRef = S.requests.filter(r => r.status === "pending" && r.type === "refund" && r.byAdmin && r.buyerId === m.id);
+  $("#wChargeDot").hidden = !adminRef.length;
+  $("#wAlert").hidden = !adminRef.length;
+  if (adminRef.length) { $("#wAlert").innerHTML = `<b>⚠️ 환전소가 충전 ${won(adminRef[0].amount)} 취소를 요청했어요</b><p class="muted" style="font-size:13px;margin:4px 0 8px">잘못 승인된 충전이에요. 확인해 주세요.</p><button class="btn small" id="wAlertGo">충전 화면에서 확인</button>`; $("#wAlertGo").onclick = () => go("charge"); }
   // 결제 대기 카드 (내가 요청한 것)
   if (pays.length && !S.buyItem) {
     const r = pays[0];
+    S.cardKind = "pending";
     $("#buyCard").hidden = false;
     $("#buyCard").innerHTML = `<div class="done-big"><div class="ic">⏳</div><h3>${esc(r.itemName)}</h3><p class="muted">셀러가 가격을 확정하는 중…<br>흥정하셨다면 지금 깎아달라고 말하세요!</p><div class="won" style="font-size:36px">${won(r.listPrice)}</div><div class="muted" style="font-size:13px">정가 기준 · 확정가는 셀러가 입력</div><div style="height:10px"></div><button class="btn ghost small" id="buyCancel">요청 취소</button></div>`;
-    $("#buyCancel").onclick = () => S.be.update("requests", r.id, { status: "cancel" });
+    $("#buyCancel").onclick = async () => { await S.be.update("requests", r.id, { status: "cancel" }); toast("구매 요청을 취소했어요"); };
   } else if (!S.buyItem) {
+    if (S.cardKind === "pending") { $("#buyCard").hidden = true; $("#buyCard").innerHTML = ""; S.cardKind = null; }
     // 방금 확정된 결제 알림
     const last = buys[0];
     if (last && LS.get("jp_lastSeen", "") !== last.id && Date.now() - new Date(last.at).getTime() < 120000) {
       LS.set("jp_lastSeen", last.id);
+      S.cardKind = "done";
       $("#buyCard").hidden = false;
       $("#buyCard").innerHTML = `<div class="done-big"><div class="ic">✅</div><h3>결제 완료</h3><p>${esc(last.itemName)} · <b class="won" style="font-size:28px">${won(last.amount)}</b></p>${last.discount > 0 ? `<span class="badge green">흥정 성공! ${won(last.discount)} 할인</span>` : `<span class="badge gray">정가 구매</span>`}<div style="height:10px"></div><button class="btn ghost small" onclick="this.closest('.card').hidden=true">닫기</button></div>`;
     }
@@ -1828,7 +1897,7 @@ function renderWallet(m) {
 }
 
 function renderBuy(item) {
-  S.buyItem = item;
+  S.buyItem = item; S.cardKind = "shop";
   const m = me();
   const seller = byId(S.users, item.sellerId);
   const c = $("#buyCard"); c.hidden = false;
@@ -1840,11 +1909,11 @@ function renderBuy(item) {
     <p class="muted" style="font-size:13px;margin:10px 0">정가(情價)는 이미 정으로 할인된 가격이에요. 더 깎고 싶으면 셀러에게 말로 흥정 → 셀러가 확정가를 입력합니다.</p>
     ${sold ? `<span class="badge gray">이미 판매된 물건</span>` : m.balance < item.price ? `<span class="badge">잔액 부족 — 흥정으로 깎이면 결제될 수 있어요</span>` : ""}
     <div class="row" style="margin-top:10px"><button class="btn ok" id="buyGo" ${sold ? "disabled" : ""}>🤝 이 물건 살게요 (결제 요청)</button><button class="btn ghost" id="buyClose" style="flex:0 0 auto;width:auto">닫기</button></div>`;
-  $("#buyClose").onclick = () => { const s2 = byId(S.users, item.sellerId); if (s2?.sellerNo) renderShop(s2); else { S.buyItem = null; c.hidden = true; render(); } };
+  $("#buyClose").onclick = () => { const s2 = byId(S.users, item.sellerId); if (s2?.sellerNo) renderShop(s2); else { S.buyItem = null; S.cardKind = null; c.hidden = true; render(); } };
   $("#buyGo").onclick = async () => {
     if (S.requests.some(r => r.status === "pending" && r.type === "pay" && r.buyerId === m.id)) return toast("확정 대기 중인 결제가 있어요. 먼저 끝내 주세요");
     await S.be.add("requests", { type: "pay", status: "pending", buyerId: m.id, buyerName: m.name, itemId: item.id, itemNo: item.no, itemName: item.name, sellerId: item.sellerId, sellerName: item.sellerName, listPrice: item.price, createdAt: nowIso() });
-    S.buyItem = null; toast("셀러에게 결제 요청을 보냈어요"); render();
+    S.buyItem = null; S.cardKind = null; toast("셀러에게 결제 요청을 보냈어요"); render();
   };
 }
 function openShop(no) {
@@ -1854,26 +1923,83 @@ function openShop(no) {
   renderShop(seller); window.scrollTo(0, 0);
 }
 function renderShop(seller) {
-  S.buyItem = { shop: seller.id };
+  S.buyItem = { shop: seller.id }; S.cardKind = "shop";
   const items = S.items.filter(i => i.sellerId === seller.id).sort((a, b) => a.no - b.no);
   const c = $("#buyCard"); c.hidden = false;
   c.innerHTML = `<h3 style="margin-top:0">🏪 <span class="no" style="font-size:18px">${pad3(seller.sellerNo)}</span> ${esc(seller.shopName || seller.name)}</h3>
     <p class="muted" style="font-size:13px;margin:0 0 8px">사고 싶은 물건을 고르세요. 정가(情價)는 이미 정으로 할인된 가격 — 더 깎고 싶으면 셀러에게 말로 흥정하세요.</p>
     <div class="list">${items.length ? items.map(i => `<div class="item ${i.status !== "판매중" ? "sold" : ""}" ${i.status === "판매중" ? `data-pick="${i.id}" style="cursor:pointer"` : ""}>${i.photo ? `<img src="${i.photo}" alt="">` : `<div class="ph">🎁</div>`}<div class="meta"><span class="no">No.${pad3(i.no)}</span><b>${esc(i.name)}</b><small>${i.status === "판매중" ? "탭해서 고르기" : i.status}</small></div><div class="price">${won(i.price)}</div></div>`).join("") : '<div class="muted">아직 등록된 물건이 없어요</div>'}</div>
     <div class="row" style="margin-top:10px"><button class="btn ghost" id="buyClose">닫기</button></div>`;
-  $("#buyClose").onclick = () => { S.buyItem = null; c.hidden = true; render(); };
+  $("#buyClose").onclick = () => { S.buyItem = null; S.cardKind = null; c.hidden = true; render(); };
   c.querySelectorAll("[data-pick]").forEach(el => el.onclick = () => { const it = byId(S.items, el.dataset.pick); if (it) renderBuy(it); });
 }
 $("#wNoGo").onclick = () => openShop($("#wNo").value);
 $("#wNo").onkeydown = e => { if (e.key === "Enter") $("#wNoGo").click(); };
-$("#wTopup").onclick = async () => {
-  const v = await ask("충전할 금액 (1,000원 단위)\n환전소에서 현금을 내고 요청하면 운영진이 승인해요.", { input: 5000, okText: "충전 요청" });
-  if (v == null) return; const amt = Number(v);
-  if (!amt || amt % RULE.TOPUP_STEP !== 0 || amt > 200000) return toast("1,000원 단위로 입력하세요");
-  const m = me();
+$("#wTopup").onclick = () => go("charge");
+$("#cBack").onclick = () => go("wallet");
+$("#cChips").innerHTML = [5000, 10000, 20000, 30000, 50000].map(v => `<button class="chip" data-v="${v}">${(v / 10000 >= 1 ? v / 10000 + "만" : v / 1000 + "천")}원</button>`).join("");
+$("#cChips").querySelectorAll(".chip").forEach(c => c.onclick = () => { $("#cAmt").value = c.dataset.v; });
+$("#cReq").onclick = async () => {
+  const m = me(); const amt = Number($("#cAmt").value);
+  if (!amt || amt % RULE.TOPUP_STEP !== 0 || amt > 200000) return toast("1,000원 단위로 입력하세요 (최대 20만원)");
+  if (S.requests.some(r => r.status === "pending" && r.type === "topup" && r.buyerId === m.id)) return toast("승인 대기 중인 충전 요청이 있어요. 먼저 끝내 주세요");
+  if (!(await ask(`${won(amt)} 충전을 요청할까요?\n환전소에 현금 ${won(amt)}을 내면 운영진이 승인해요.`, { okText: "충전 요청" }))) return;
   await S.be.add("requests", { type: "topup", status: "pending", buyerId: m.id, buyerName: m.name, sid: m.sid, amount: amt, createdAt: nowIso() });
-  toast("충전 요청 보냄 — 운영진 승인을 기다리세요");
+  $("#cAmt").value = ""; toast("충전 요청 보냄 — 환전소에서 현금을 내세요");
 };
+const hm = at => new Date(at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+function renderCharge(m) {
+  if (!$("#s-charge")) return;
+  $("#cBal").textContent = won(m.balance);
+  const mine = S.requests.filter(r => r.status === "pending" && r.buyerId === m.id);
+  const topReq = mine.filter(r => r.type === "topup");
+  const ownRef = mine.filter(r => r.type === "refund" && !r.byAdmin);
+  const admRef = mine.filter(r => r.type === "refund" && r.byAdmin);
+  $("#cReq").disabled = topReq.length > 0;
+  // 운영진이 보낸 취소 요청 (동의/거절)
+  $("#cAlert").hidden = !admRef.length;
+  $("#cAlert").innerHTML = admRef.map(r => `<div style="margin-bottom:8px"><b>⚠️ 환전소가 충전 ${won(r.amount)} 취소를 요청했어요</b><p class="muted" style="font-size:13px;margin:4px 0 8px">잘못 승인된 충전이에요. 동의하면 잔액에서 ${won(r.amount)}이 빠지고, 낸 현금은 환전소에서 돌려받아요.</p><div class="row"><button class="btn ok small" data-agree-refund="${r.id}">동의</button><button class="btn ghost small" data-cancel-req="${r.id}">거절</button></div></div>`).join("");
+  // 대기 중 (충전 요청 / 내 취소 요청)
+  $("#cPending").innerHTML = [
+    ...topReq.map(r => `<div class="item"><div class="ph">⏳</div><div class="meta"><b>충전 ${won(r.amount)} 승인 대기</b><small>${hm(r.createdAt)} · 환전소에서 현금을 내면 승인돼요</small></div><button class="btn ghost small" data-cancel-req="${r.id}">요청 취소</button></div>`),
+    ...ownRef.map(r => `<div class="item"><div class="ph">↩️</div><div class="meta"><b>충전 취소 ${won(r.amount)} 처리 대기</b><small>${hm(r.createdAt)} · 환전소에서 현금을 돌려받으면 처리돼요</small></div><button class="btn ghost small" data-cancel-req="${r.id}">철회</button></div>`),
+  ].join("");
+  // 충전 · 사용 내역 (잔액 흐름)
+  const rows = S.txns.filter(t => t.buyerId === m.id || (t.type === "pay" && t.sellerId === m.id)).sort((a, b) => a.at.localeCompare(b.at));
+  let bal = 0;
+  const hist = rows.map(t => {
+    let sign = 0, title = "", sub = "";
+    if (t.type === "topup") { sign = 1; title = "충전"; sub = "환전소 승인"; }
+    else if (t.type === "refund") { sign = -1; title = "충전 취소"; sub = "현금 환불"; }
+    else if (t.type === "payout") { sign = -1; title = "정산 (현금 수령)"; sub = "환전소"; }
+    else if (t.type === "pay" && t.buyerId === m.id) { sign = -1; title = t.itemName; sub = `${shopOf(t.sellerId, t.sellerName)}${t.discount > 0 ? ` · 흥정 −${won(t.discount)}` : ""}`; }
+    else if (t.type === "pay") { sign = 1; title = `판매: ${t.itemName}`; sub = `${t.buyerName}님 구매`; }
+    bal += sign * t.amount;
+    let act = "";
+    if (t.type === "topup") {
+      const ref = S.requests.find(r => r.type === "refund" && r.refTxn === t.id && r.status !== "cancel");
+      if (ref) act = `<span class="badge gray">${ref.status === "done" ? "취소됨" : "취소 처리 중"}</span>`;
+      else if (Date.now() - new Date(t.at).getTime() < 3 * 3600000) act = `<button class="btn ghost small" data-refund="${t.id}" data-amt="${t.amount}">취소 요청</button>`;
+    }
+    return { at: t.at, html: `<div class="item"><div class="ph">${t.type === "topup" ? "💰" : t.type === "refund" ? "↩️" : t.type === "payout" ? "💵" : sign > 0 ? "🏷️" : "🧾"}</div><div class="meta"><b>${esc(title)}</b><small>${hm(t.at)} · ${esc(sub)} · 잔액 ${won(bal)}</small></div><div style="text-align:right"><div class="hist-amt ${sign > 0 ? "plus" : "minus"}">${sign > 0 ? "+" : "−"}${won(t.amount)}</div>${act}</div></div>` };
+  }).reverse();
+  $("#cHist").innerHTML = hist.length ? hist.map(h => h.html).join("") : '<div class="muted">아직 없음</div>';
+  // 버튼 동작
+  const sc = $("#s-charge");
+  sc.querySelectorAll("[data-cancel-req]").forEach(b => b.onclick = async () => { if (await ask("이 요청을 취소할까요?", { okText: "취소하기" })) { await S.be.update("requests", b.dataset.cancelReq, { status: "cancel" }); toast("취소했어요"); } });
+  sc.querySelectorAll("[data-agree-refund]").forEach(b => b.onclick = async () => {
+    const r = byId(S.requests, b.dataset.agreeRefund); if (!r) return;
+    if (!(await ask(`충전 ${won(r.amount)} 취소에 동의할까요?\n잔액에서 ${won(r.amount)}이 빠집니다.`, { okText: "동의" }))) return;
+    await approve(r);
+  });
+  sc.querySelectorAll("[data-refund]").forEach(b => b.onclick = async () => {
+    const amt = Number(b.dataset.amt); const mm = me();
+    if ((mm.balance || 0) < amt) return toast(`잔액(${won(mm.balance)})이 충전액보다 적어 취소할 수 없어요. 환전소에 말씀해 주세요`);
+    if (!(await ask(`충전 ${won(amt)}을 취소 요청할까요?\n환전소에서 현금을 돌려받으면 잔액에서 빠져요.`, { okText: "취소 요청" }))) return;
+    await S.be.add("requests", { type: "refund", status: "pending", buyerId: mm.id, buyerName: mm.name, sid: mm.sid, amount: amt, refTxn: b.dataset.refund, createdAt: nowIso() });
+    toast("충전 취소 요청 보냄 — 환전소로 가세요");
+  });
+}
 $("#wSellerOn").onclick = async () => { const v = await ask("가게(팀) 이름을 입력하세요\n개인이면 비워 두면 내 이름으로 · 번호는 자동", { input: "", okText: "셀러 등록", text: true }); if (v == null) return; await becomeSeller(me(), v.trim() || me().name); toast("셀러 탭이 열렸어요"); };
 
 /* ---- QR 스캔: 앱 안(BarcodeDetector) → 안 되면 기본 카메라 앱 안내 ---- */
@@ -2024,17 +2150,31 @@ function ranking() {
 const adminPin = () => byId(S.settings, "admin")?.pin || RULE.ADMIN_PIN;
 $("#aUnlock").onclick = () => { if ($("#aPin").value !== adminPin()) return toast("PIN이 달라요"); S.adminOpen = true; $("#aLock").hidden = true; $("#aBody").hidden = false; $("#aPin").value = ""; renderAdmin(); };
 $("#aPin").onkeydown = e => { if (e.key === "Enter") $("#aUnlock").click(); };
+document.querySelectorAll("#aNav button").forEach(b => b.onclick = () => {
+  const v = b.dataset.ap === "dash" ? "req" : b.dataset.ap;
+  $("#aBody").dataset.view = v;
+  document.querySelectorAll("#aNav button").forEach(x => x.classList.toggle("on", x.dataset.ap === b.dataset.ap || (b.dataset.ap === "dash" && x.dataset.ap === "req") || (v === "req" && x.dataset.ap === "dash")));
+  window.scrollTo(0, 0);
+});
 function renderAdmin() {
-  const reqs = S.requests.filter(r => r.status === "pending" && r.type !== "pay").sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-  $("#aReqCount").textContent = reqs.length || "";
-  $("#aReqs").innerHTML = reqs.length ? reqs.map(r => `<div class="req" data-id="${r.id}"><div class="head"><b>${r.type === "topup" ? "💰 충전" : r.type === "refund" ? "↩️ 충전 취소" : "💵 정산"} ${won(r.amount)}</b><span class="no">${esc(r.buyerName)} · ${esc(r.sid)}</span></div>
-    <div class="sub">${r.type === "topup" ? "현금 받았는지 확인 후 승인" : r.type === "refund" ? "손님에게 현금 돌려준 후 승인 (잔액에서 차감)" : "현금 내준 후 승인 (잔액 0으로)"} · ${new Date(r.createdAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</div>
-    <div class="row" style="margin-top:8px">${r.type === "refund" && r.byAdmin ? `<span class="badge">손님 동의 대기 중</span><button class="btn ghost small rej">철회</button>` : `<button class="btn ok small appr">승인</button><button class="btn ghost small rej">거절</button>`}</div></div>`).join("") : '<div class="muted">대기 중인 요청 없음</div>';
-  $("#aReqs").querySelectorAll(".req").forEach(box => {
+  const pend = S.requests.filter(r => r.status === "pending").sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  const reqs = pend.filter(r => r.type === "topup" || r.type === "payout");
+  const refReqs = pend.filter(r => r.type === "refund" && !r.byAdmin);
+  const refWait = pend.filter(r => r.type === "refund" && r.byAdmin);
+  $("#aReqCount").textContent = $("#aReqCount2").textContent = reqs.length || "";
+  $("#aRefCount").textContent = $("#aRefCount2").textContent = refReqs.length || "";
+  const card = (r, btns) => `<div class="req" data-id="${r.id}"><div class="head"><b>${r.type === "topup" ? "💰 충전" : r.type === "refund" ? "↩️ 충전 취소" : "💵 정산"} ${won(r.amount)}</b><span class="no">${esc(r.buyerName)} · ${esc(r.sid)}</span></div>
+    <div class="sub">${r.type === "topup" ? "현금 받았는지 확인 후 승인" : r.type === "refund" ? (r.byAdmin ? "손님이 앱에서 동의하면 처리돼요" : "손님에게 현금 돌려준 뒤 승인 (잔액에서 차감)") : "현금 내준 후 승인 (잔액 0으로)"} · ${hm(r.createdAt)}</div>
+    <div class="row" style="margin-top:8px">${btns}</div></div>`;
+  const okBtns = `<button class="btn ok small appr">승인</button><button class="btn ghost small rej">거절</button>`;
+  $("#aReqs").innerHTML = reqs.length ? reqs.map(r => card(r, okBtns)).join("") : '<div class="muted">대기 중인 요청 없음</div>';
+  $("#aRefReqs").innerHTML = refReqs.length ? refReqs.map(r => card(r, okBtns)).join("") : '<div class="muted">없음</div>';
+  $("#aRefWait").innerHTML = refWait.length ? refWait.map(r => card(r, `<span class="badge">손님 동의 대기 중</span><button class="btn ghost small rej">철회</button>`)).join("") : '<div class="muted">없음</div>';
+  ["#aReqs", "#aRefReqs", "#aRefWait"].forEach(sel => $(sel).querySelectorAll(".req").forEach(box => {
     const r = byId(S.requests, box.dataset.id);
-    box.querySelector(".rej").onclick = () => S.be.update("requests", r.id, { status: "cancel" });
+    box.querySelector(".rej").onclick = async () => { if (await ask(r.byAdmin ? "보낸 취소 요청을 철회할까요?" : "이 요청을 거절할까요?", { okText: r.byAdmin ? "철회" : "거절" })) S.be.update("requests", r.id, { status: "cancel" }); };
     const ap = box.querySelector(".appr"); if (ap) ap.onclick = () => approve(r);
-  });
+  }));
   // 최근 승인한 충전 → 취소 요청 보내기
   const recentTops = S.txns.filter(t => t.type === "topup" && Date.now() - new Date(t.at).getTime() < 3 * 3600000).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 8);
   $("#aRecentTops").innerHTML = recentTops.length ? recentTops.map(t => { const already = S.requests.some(r => r.type === "refund" && r.refTxn === t.id && r.status !== "cancel"); const u = byId(S.users, t.buyerId); return `<div class="item"><div class="ph">💰</div><div class="meta"><b>${esc(t.buyerName)} · ${won(t.amount)}</b><small>${new Date(t.at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} · 현재 잔액 ${won(u?.balance)}${already ? " · 취소 요청됨/처리됨" : ""}</small></div>${already ? "" : `<button class="btn ghost small" data-admin-refund="${t.id}">취소 요청</button>`}</div>`; }).join("") : '<div class="muted">최근 승인한 충전 없음</div>';
